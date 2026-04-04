@@ -199,7 +199,7 @@ function subscribeFB(){
   if(!firebaseReady||!S.user||!S.user.uid){console.warn("subscribeFB: not ready");return}
   if(S.unsub){S.unsub();S.unsub=null}
   console.log("Subscribing to Firestore for uid:",S.user.uid);
-  S.unsub=getRef().orderBy("lastUpdate","desc").onSnapshot(function(snap){
+  S.unsub=getRef().onSnapshot(function(snap){
     var jobs=[];
     snap.forEach(function(d){jobs.push(Object.assign({id:d.id},d.data()))});
     console.log("Snapshot:",jobs.length,"jobs");
@@ -208,7 +208,8 @@ function subscribeFB(){
     render()
   },function(err){
     console.error("Firestore listener error:",err);
-    S.jobs=lsLoad();
+    // Don't sign out — just use cached data
+    if(S.jobs.length===0){S.jobs=lsLoad()}
     render()
   });
   S.syncMode="firebase"
@@ -232,16 +233,18 @@ function fbClear(){
 }
 // syncUp removed — Firestore is single source of truth
 
-// ---- AUTH (FIXED — no localStorage session hack) ----
+// ---- AUTH ----
+var _signedOut=false; // track if user explicitly signed out
 function signInGoogle(){
   if(!firebaseReady){flash("Firebase not configured","err");return}
+  _signedOut=false;
   fbAuth.signInWithPopup(fbProvider).catch(function(e){
     console.error("Auth error:",e);flash("Sign-in failed: "+e.message,"err")
   })
-  // Don't set S.user here — onAuthStateChanged will handle it
 }
 
 function signOutUser(){
+  _signedOut=true; // mark as intentional sign-out
   if(S.unsub){S.unsub();S.unsub=null}
   if(firebaseReady)fbAuth.signOut().catch(function(){});
   S.user=null;S.syncMode="local";S.jobs=lsLoad();S.mode="auth";render()
@@ -253,15 +256,32 @@ function initApp(){
   console.log("initApp firebaseReady="+firebaseReady);
   if(firebaseReady){
     fbAuth.onAuthStateChanged(function(u){
-      console.log("onAuthStateChanged:",u?u.email:"signed out");
+      console.log("onAuthStateChanged:",u?u.email:"null","signedOut="+_signedOut);
       if(u){
+        // User is authenticated
+        _signedOut=false;
         S.user={uid:u.uid,name:u.displayName,email:u.email,photo:u.photoURL};
         S.mode="app";
         subscribeFB()
-      }else{
-        // User is signed out — do NOT restore from localStorage
+      }else if(_signedOut){
+        // User explicitly signed out — show auth screen
         if(S.unsub){S.unsub();S.unsub=null}
         S.user=null;S.mode="auth";S.syncMode="local";S.jobs=lsLoad()
+      }else{
+        // Transient null during init/token refresh — wait for next event
+        // Only go to auth screen if we've never had a user this session
+        console.log("Transient null — waiting...");
+        if(!S.user){
+          // First load, no user yet — show auth after a brief delay
+          // to give Firebase time to restore the session
+          setTimeout(function(){
+            if(!S.user&&!_signedOut){
+              console.log("No user restored after timeout — showing auth");
+              S.mode="auth";S.syncMode="local";S.jobs=lsLoad();render()
+            }
+          },2000)
+        }
+        return // don't render yet — wait for the real callback
       }
       render()
     })
