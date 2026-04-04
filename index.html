@@ -60,6 +60,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--input-focus)!importan
 .row-stale{background:rgba(251,191,36,0.04)!important}.row-follow{background:rgba(248,113,113,0.04)!important}
 .inline-input{background:var(--input-bg);border:1px solid var(--input-focus);border-radius:5px;padding:3px 6px;font-size:12px;color:var(--text);font-weight:600;outline:none;width:100%;font-family:var(--font)}
 .status-wrap{position:relative;display:inline-block}.status-wrap select{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.source-wrap{position:relative;display:inline-block}.source-wrap select{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:8px;margin-bottom:14px}
 .stat-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;box-shadow:var(--shadow)}
 .stat-val{font-size:24px;font-weight:900;letter-spacing:-.04em;line-height:1}
@@ -70,7 +71,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--input-focus)!importan
 .form-panel{border:1px solid rgba(108,123,255,0.3);border-radius:var(--radius-lg);margin-bottom:12px;box-shadow:0 0 0 1px rgba(108,123,255,0.1),var(--shadow);overflow:hidden;background:var(--card)}
 .form-topbar{padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg2);display:flex;gap:6px;align-items:center}
 .form-grid{padding:12px 14px;display:grid;gap:10px;align-items:end}
-.form-grid.quick{grid-template-columns:1fr 1fr 130px auto}
+.form-grid.quick{grid-template-columns:1fr 1fr 120px 110px 110px auto}
 .form-grid.full{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
 .alert-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
 .alert-pill{display:flex;align-items:center;gap:6px;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:600}
@@ -109,12 +110,6 @@ const firebaseConfig = {
   measurementId: "G-0CX7MM2CR2"
 };
 
-var firebaseReady = false;
-var fbAuth = null;
-var fbDb = null;
-var fbProvider = null;
-  
-// ---- Firebase Init (FINAL FIXED VERSION) ----
 var firebaseReady = false;
 var fbAuth = null;
 var fbDb = null;
@@ -201,135 +196,81 @@ var S={user:null,mode:"loading",syncMode:"local",jobs:[],dark:localStorage.getIt
 // ---- Firebase Data ----
 function getRef(){return fbDb.collection("users").doc(S.user.uid).collection("applications")}
 function subscribeFB(){
-  if(!firebaseReady||!S.user)return;
-  if(S.unsub)S.unsub();
-  S.unsub=getRef().onSnapshot(function(snap){var j=[];snap.forEach(function(d){j.push(Object.assign({id:d.id},d.data()))});S.jobs=j;lsSave(j);render()},function(err){console.error("FB err:",err);flash("Sync error","warn");S.jobs=lsLoad();render()});
+  if(!firebaseReady||!S.user||!S.user.uid){console.warn("subscribeFB: not ready");return}
+  if(S.unsub){S.unsub();S.unsub=null}
+  console.log("Subscribing to Firestore for uid:",S.user.uid);
+  S.unsub=getRef().orderBy("lastUpdate","desc").onSnapshot(function(snap){
+    var jobs=[];
+    snap.forEach(function(d){jobs.push(Object.assign({id:d.id},d.data()))});
+    console.log("Snapshot:",jobs.length,"jobs");
+    S.jobs=jobs;
+    lsSave(jobs);
+    render()
+  },function(err){
+    console.error("Firestore listener error:",err);
+    S.jobs=lsLoad();
+    render()
+  });
   S.syncMode="firebase"
 }
-function fbSave(job){if(!firebaseReady||!S.user){lsSave(S.jobs);return}var d=Object.assign({},job);var id=d.id;delete d.id;getRef().doc(id).set(d).catch(function(e){console.error(e);lsSave(S.jobs);flash("Save failed - stored locally","warn")})}
-function fbDel(id){if(!firebaseReady||!S.user){lsSave(S.jobs);return}getRef().doc(id).delete().catch(function(e){console.error(e);lsSave(S.jobs)})}
-function fbClear(){if(!firebaseReady||!S.user){S.jobs=[];lsSave([]);return}var b=fbDb.batch();S.jobs.forEach(function(j){b.delete(getRef().doc(j.id))});b.commit().catch(function(e){console.error(e)});S.jobs=[];lsSave([])}
-function syncUp(){var local=lsLoad();if(!local.length||!firebaseReady||!S.user)return;var b=fbDb.batch();local.forEach(function(j){var d=Object.assign({},j);var id=d.id;delete d.id;b.set(getRef().doc(id),d)});b.commit().then(function(){flash("Local data synced to cloud")}).catch(function(e){console.warn(e)})}
+// Write to Firestore. Do NOT touch S.jobs — snapshot will update it.
+function fbWrite(job){
+  if(!firebaseReady||!S.user){console.warn("fbWrite: offline");lsSave(S.jobs);return}
+  var data=Object.assign({},job);var id=data.id;delete data.id;
+  console.log("fbWrite:",id,data.company);
+  getRef().doc(id).set(data).then(function(){console.log("Write OK:",id)}).catch(function(e){console.error("Write FAILED:",e);flash("Save failed","warn")})
+}
+function fbDel(id){
+  if(!firebaseReady||!S.user){S.jobs=S.jobs.filter(function(j){return j.id!==id});lsSave(S.jobs);return}
+  console.log("fbDel:",id);
+  getRef().doc(id).delete().catch(function(e){console.error("Delete failed:",e)})
+}
+function fbClear(){
+  if(!firebaseReady||!S.user){S.jobs=[];lsSave([]);return}
+  var batch=fbDb.batch();S.jobs.forEach(function(j){batch.delete(getRef().doc(j.id))});
+  batch.commit().catch(function(e){console.error("Batch delete failed:",e)})
+}
+// syncUp removed — Firestore is single source of truth
 
-// ---- AUTH (FINAL STABLE VERSION) ----
-
-// 🔥 Sign in with Google (use popup)
+// ---- AUTH (FIXED — no localStorage session hack) ----
 function signInGoogle(){
-  if(!firebaseReady){
-    flash("Firebase not configured","err");
-    return;
-  }
-
-  fbAuth.signInWithPopup(fbProvider)
-    .then(function(result){
-      var u = result.user;
-
-      // 🔥 Save session locally (fallback)
-      localStorage.setItem("user_session", JSON.stringify({
-        uid: u.uid,
-        name: u.displayName,
-        email: u.email,
-        photo: u.photoURL
-      }));
-
-      S.user = {
-        uid: u.uid,
-        name: u.displayName,
-        email: u.email,
-        photo: u.photoURL
-      };
-
-      S.mode = "app";
-      subscribeFB();
-      render();
-    })
-    .catch(function(e){
-      console.error(e);
-      flash("Login failed","err");
-    });
+  if(!firebaseReady){flash("Firebase not configured","err");return}
+  fbAuth.signInWithPopup(fbProvider).catch(function(e){
+    console.error("Auth error:",e);flash("Sign-in failed: "+e.message,"err")
+  })
+  // Don't set S.user here — onAuthStateChanged will handle it
 }
 
-
-// 🔥 Sign out
 function signOutUser(){
-  if(S.unsub) S.unsub();
-
-  if(firebaseReady){
-    fbAuth.signOut().catch(function(){});
-  }
-
-  // 🔥 Clear local session
-  localStorage.removeItem("user_session");
-
-  S.user = null;
-  S.syncMode = "local";
-  S.jobs = lsLoad();
-  S.mode = "auth";
-
-  render();
+  if(S.unsub){S.unsub();S.unsub=null}
+  if(firebaseReady)fbAuth.signOut().catch(function(){});
+  S.user=null;S.syncMode="local";S.jobs=lsLoad();S.mode="auth";render()
 }
 
+function useLocalMode(){S.user=null;S.mode="app";S.syncMode="local";S.jobs=lsLoad();render()}
 
-// 🔥 Init App (handles session restore)
 function initApp(){
-  console.log("initApp, firebaseReady="+firebaseReady);
-
+  console.log("initApp firebaseReady="+firebaseReady);
   if(firebaseReady){
-
     fbAuth.onAuthStateChanged(function(u){
-
+      console.log("onAuthStateChanged:",u?u.email:"signed out");
       if(u){
-        console.log("Firebase user active");
-
-        // 🔥 Save session again (refresh case)
-        localStorage.setItem("user_session", JSON.stringify({
-          uid: u.uid,
-          name: u.displayName,
-          email: u.email,
-          photo: u.photoURL
-        }));
-
-        S.user = {
-          uid: u.uid,
-          name: u.displayName,
-          email: u.email,
-          photo: u.photoURL
-        };
-
-        S.mode = "app";
-        subscribeFB();
-
-      } else {
-        console.warn("Firebase user lost → restoring from localStorage");
-
-        // 🔥 Restore fallback session
-        var saved = localStorage.getItem("user_session");
-
-        if(saved){
-          var user = JSON.parse(saved);
-
-          S.user = user;
-          S.mode = "app";
-          subscribeFB();
-        } else {
-          S.mode = "auth";
-          S.jobs = lsLoad();
-        }
+        S.user={uid:u.uid,name:u.displayName,email:u.email,photo:u.photoURL};
+        S.mode="app";
+        subscribeFB()
+      }else{
+        // User is signed out — do NOT restore from localStorage
+        if(S.unsub){S.unsub();S.unsub=null}
+        S.user=null;S.mode="auth";S.syncMode="local";S.jobs=lsLoad()
       }
-
-      render();
-    });
-
-  } else {
-    S.mode = "app";
-    S.syncMode = "local";
-    S.jobs = lsLoad();
-    render();
-  }
+      render()
+    })
+  }else{S.mode="app";S.syncMode="local";S.jobs=lsLoad();render()}
 }
 
 // ---- Actions ----
-function flash(msg,type){type=type||"ok";S.toast={msg:msg,type:type};render();setTimeout(function(){S.toast=null;render()},2800)}
+var _toastTimer=null;
+function flash(msg,type){type=type||"ok";S.toast={msg:msg,type:type};if(_toastTimer)clearTimeout(_toastTimer);_toastTimer=setTimeout(function(){S.toast=null;_toastTimer=null;render()},2800);render()}
 function openForm(job){
   if(job){S.form=Object.assign({},job);S.editId=job.id;S.linkInput=job.jobLink||"";S.quickMode=false}
   else{S.form=blankJob();S.editId=null;S.linkInput="";S.quickMode=true}
@@ -344,21 +285,56 @@ function handleAutofill(){
 }
 function readFormAndSave(){
   var g=function(id){var el=$("#"+id);return el?el.value:""};
-  S.form.company=g("f-company");S.form.role=g("f-role");S.form.status=g("f-status");
-  if(!S.quickMode){S.form.dateApplied=g("f-date");S.form.source=g("f-source");S.form.contactPerson=g("f-contact");S.form.contactDetails=g("f-contactd");S.form.followUpDate=g("f-followup");S.form.notes=g("f-notes")}
+  S.form.company=g("f-company");S.form.role=g("f-role");S.form.status=g("f-status")||S.form.status;
+  S.form.dateApplied=g("f-date")||S.form.dateApplied;
+  S.form.source=g("f-source")||S.form.source;
+  if(!S.quickMode){S.form.contactPerson=g("f-contact");S.form.contactDetails=g("f-contactd");S.form.followUpDate=g("f-followup");S.form.notes=g("f-notes")}
   saveEntry()
 }
 function saveEntry(){
   if(!S.form.company.trim()||!S.form.role.trim()){flash("Company & Role required","err");return}
   S.form.lastUpdate=today();
-  if(S.editId){S.jobs=S.jobs.map(function(j){return j.id===S.editId?Object.assign({},S.form):j});fbSave(S.form);flash("Updated")}
-  else{S.jobs.unshift(Object.assign({},S.form));fbSave(S.form);flash("Added")}
-  if(S.syncMode==="local")lsSave(S.jobs);resetForm()
+  var job=Object.assign({},S.form);
+  if(S.syncMode==="firebase"){
+    // Write to Firestore ONLY — snapshot will update S.jobs automatically
+    fbWrite(job);flash(S.editId?"Updated":"Added")
+  }else{
+    if(S.editId){S.jobs=S.jobs.map(function(j){return j.id===S.editId?job:j})}
+    else{S.jobs.unshift(job)}
+    lsSave(S.jobs);flash(S.editId?"Updated":"Added")
+  }
+  resetForm()
 }
-function deleteEntry(id){S.jobs=S.jobs.filter(function(j){return j.id!==id});fbDel(id);if(S.syncMode==="local")lsSave(S.jobs);S.confirmDel=null;flash("Deleted","err");render()}
-function clearAll(){fbClear();S.jobs=[];if(S.syncMode==="local")lsSave([]);S.confirmDel=null;flash("All cleared","err");render()}
-function quickStatus(id,st){var job=null;for(var i=0;i<S.jobs.length;i++){if(S.jobs[i].id===id){job=S.jobs[i];break}}if(!job)return;job.status=st;job.lastUpdate=today();fbSave(job);if(S.syncMode==="local")lsSave(S.jobs);render()}
-function commitInline(){var ie=S.inlineEdit;if(!ie)return;for(var i=0;i<S.jobs.length;i++){if(S.jobs[i].id===ie.id){S.jobs[i][ie.field]=ie.value;S.jobs[i].lastUpdate=today();fbSave(S.jobs[i]);break}}if(S.syncMode==="local")lsSave(S.jobs);S.inlineEdit=null;render()}
+function deleteEntry(id){
+  if(S.syncMode==="firebase"){fbDel(id)}
+  else{S.jobs=S.jobs.filter(function(j){return j.id!==id});lsSave(S.jobs)}
+  S.confirmDel=null;flash("Deleted","err");render()
+}
+function clearAll(){
+  if(S.syncMode==="firebase"){fbClear()}
+  else{S.jobs=[];lsSave([])}
+  S.confirmDel=null;flash("All cleared","err");render()
+}
+function quickStatus(id,st){
+  var job=null;for(var i=0;i<S.jobs.length;i++){if(S.jobs[i].id===id){job=Object.assign({},S.jobs[i]);break}}
+  if(!job)return;job.status=st;job.lastUpdate=today();
+  if(S.syncMode==="firebase"){fbWrite(job)}
+  else{for(var i2=0;i2<S.jobs.length;i2++){if(S.jobs[i2].id===id){S.jobs[i2]=job;break}}lsSave(S.jobs);render()}
+}
+function quickSource(id,src){
+  var job=null;for(var i=0;i<S.jobs.length;i++){if(S.jobs[i].id===id){job=Object.assign({},S.jobs[i]);break}}
+  if(!job)return;job.source=src;job.lastUpdate=today();
+  if(S.syncMode==="firebase"){fbWrite(job)}
+  else{for(var i2=0;i2<S.jobs.length;i2++){if(S.jobs[i2].id===id){S.jobs[i2]=job;break}}lsSave(S.jobs);render()}
+}
+function commitInline(){
+  var ie=S.inlineEdit;if(!ie)return;
+  var job=null;for(var i=0;i<S.jobs.length;i++){if(S.jobs[i].id===ie.id){job=Object.assign({},S.jobs[i]);break}}
+  if(!job)return;job[ie.field]=ie.value;job.lastUpdate=today();
+  if(S.syncMode==="firebase"){fbWrite(job)}
+  else{for(var i2=0;i2<S.jobs.length;i2++){if(S.jobs[i2].id===ie.id){S.jobs[i2]=job;break}}lsSave(S.jobs)}
+  S.inlineEdit=null;render()
+}
 function exportCSV(){var h=["Company","Role","Date Applied","Source","Status","Contact Person","Contact Details","Follow-up Date","Last Update","Notes","Job Link"];var r=S.jobs.map(function(j){return[j.company,j.role,j.dateApplied,j.source,j.status,j.contactPerson,j.contactDetails,j.followUpDate,j.lastUpdate,j.notes,j.jobLink]});var csv=[h].concat(r).map(function(row){return row.map(function(c){return'"'+((c||"").replace(/"/g,'""'))+'"'}).join(",")}).join("\n");var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="placetrack_"+today()+".csv";a.click();flash("Exported CSV")}
 
 // ---- Computed ----
@@ -425,7 +401,9 @@ function render(){
       h+='<div><label class="label">Company *</label><input class="input" id="f-company" value="'+esc(S.form.company)+'" placeholder="e.g. HSBC"></div>';
       h+='<div><label class="label">Role *</label><input class="input" id="f-role" value="'+esc(S.form.role)+'" placeholder="e.g. Financial Analyst"></div>';
       h+='<div><label class="label">Status</label><select class="input" id="f-status">'+STATUSES.map(function(s){return'<option value="'+s+'"'+(s===S.form.status?" selected":"")+'>'+s+'</option>'}).join("")+'</select></div>';
-      if(S.quickMode)h+='<div style="display:flex;gap:6px;padding-bottom:1px"><button class="btn btn-primary" onclick="readFormAndSave()">'+(S.editId?"Update":"Save")+'</button><button class="btn btn-ghost" onclick="resetForm()">X</button></div>';
+      h+='<div><label class="label">Date</label><input class="input" type="date" id="f-date" value="'+S.form.dateApplied+'"></div>';
+      h+='<div><label class="label">Source</label><select class="input" id="f-source">'+SOURCES.map(function(s){return'<option value="'+s+'"'+(s===S.form.source?" selected":"")+'>'+s+'</option>'}).join("")+'</select></div>';
+      if(S.quickMode)h+='<div style="display:flex;gap:6px;padding-bottom:1px;align-self:end"><button class="btn btn-primary" onclick="readFormAndSave()">'+(S.editId?"Update":"Save")+'</button><button class="btn btn-ghost" onclick="resetForm()">X</button></div>';
       else{
         h+='<div><label class="label">Date</label><input class="input" type="date" id="f-date" value="'+S.form.dateApplied+'"></div>';
         h+='<div><label class="label">Source</label><select class="input" id="f-source">'+SOURCES.map(function(s){return'<option value="'+s+'"'+(s===S.form.source?" selected":"")+'>'+s+'</option>'}).join("")+'</select></div>';
@@ -444,8 +422,8 @@ function render(){
     h+='<select class="input" style="width:auto;padding:5px 8px;font-size:11px" id="filter-source">'+["All"].concat(SOURCES).map(function(s){return'<option value="'+s+'"'+(s===S.fSource?" selected":"")+'>'+(s==="All"?"All Sources":s)+'</option>'}).join("")+'</select>';
     h+='<span style="margin-left:auto;font-size:11px;color:var(--dim)">'+f.length+'/'+S.jobs.length+'</span></div>';
     h+='<div style="overflow-x:auto"><table class="data-table"><thead><tr><th style="width:24px"></th>';
-    [{k:"company",l:"Company"},{k:"role",l:"Role"},{k:"dateApplied",l:"Applied"},{k:null,l:"Source"},{k:"status",l:"Status"},{k:null,l:"Follow-up"},{k:null,l:""}].forEach(function(col){
-      h+='<th'+(col.k?' data-sort="'+col.k+'"':'')+(col.l==="Applied"||col.l==="Source"||col.l==="Follow-up"?' class="hide-mobile" style="width:75px"':col.l===""?' style="width:85px"':'')+'>'+col.l+(S.sortKey===col.k?(S.sortDir==="asc"?" ↑":" ↓"):"")+'</th>'
+    [{k:"company",l:"Company"},{k:"role",l:"Role"},{k:"dateApplied",l:"Applied"},{k:"source",l:"Source"},{k:"status",l:"Status"},{k:null,l:"Follow-up"},{k:null,l:""}].forEach(function(col){
+      h+='<th'+(col.k?' data-sort="'+col.k+'"':'')+(col.l==="Applied"||col.l==="Follow-up"?' class="hide-mobile" style="width:75px"':col.l===""?' style="width:85px"':col.l==="Source"?' style="width:90px"':'')+'>'+col.l+(S.sortKey===col.k?(S.sortDir==="asc"?" ↑":" ↓"):"")+'</th>'
     });
     h+='</tr></thead><tbody>';
 
@@ -466,7 +444,7 @@ function render(){
       else h+='<div style="font-weight:600">'+esc(j.role)+'</div>'+(j.notes?'<div style="font-size:10px;color:var(--dim);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(j.notes)+'</div>':'');
       h+='</td>';
       h+='<td class="hide-mobile" style="font-size:11px;color:var(--muted)">'+fmtDate(j.dateApplied)+'</td>';
-      h+='<td class="hide-mobile" style="font-size:11px;color:var(--muted)">'+esc(j.source)+'</td>';
+      h+='<td style="font-size:11px;color:var(--muted)"><div class="source-wrap"><select data-quicksource="'+j.id+'">'+SOURCES.map(function(s){return'<option value="'+s+'"'+(s===j.source?" selected":"")+'>'+s+'</option>'}).join("")+'</select><span style="cursor:pointer;font-size:11px;color:var(--accent);font-weight:600">'+esc(j.source||"Other")+'</span></div></td>';
       h+='<td><div class="status-wrap"><select data-quickstatus="'+j.id+'">'+STATUSES.map(function(s){return'<option value="'+s+'"'+(s===j.status?" selected":"")+'>'+s+'</option>'}).join("")+'</select><span class="badge '+SC_CLASS[j.status]+'" data-status="'+j.status+'"><span class="dot"></span>'+j.status+'</span></div></td>';
       h+='<td class="hide-mobile" style="font-size:11px;'+(follow?"color:var(--danger);font-weight:700":"color:var(--muted)")+'">'+(j.followUpDate?fmtDate(j.followUpDate):'<span style="color:var(--ghost)">-</span>')+'</td>';
       h+='<td><div style="display:flex;gap:3px"><button class="btn btn-icon" data-edit="'+j.id+'" title="Edit"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>';
@@ -528,6 +506,7 @@ function bindEvents(){
   var fsr=$("#filter-source");if(fsr)fsr.onchange=function(e){S.fSource=e.target.value;render()};
   var ths=$$("th[data-sort]");for(var i=0;i<ths.length;i++){(function(th){th.onclick=function(){var k=th.getAttribute("data-sort");if(S.sortKey===k)S.sortDir=S.sortDir==="asc"?"desc":"asc";else{S.sortKey=k;S.sortDir="desc"}render()}})(ths[i])}
   var qss=$$("select[data-quickstatus]");for(var i2=0;i2<qss.length;i2++){(function(sel){sel.onchange=function(e){quickStatus(sel.getAttribute("data-quickstatus"),e.target.value)}})(qss[i2])}
+  var qsrc=$$("select[data-quicksource]");for(var i2b=0;i2b<qsrc.length;i2b++){(function(sel){sel.onchange=function(e){quickSource(sel.getAttribute("data-quicksource"),e.target.value)}})(qsrc[i2b])}
   var eds=$$("[data-edit]");for(var i3=0;i3<eds.length;i3++){(function(el){el.onclick=function(e){e.stopPropagation();var job=null;for(var x=0;x<S.jobs.length;x++){if(S.jobs[x].id===el.getAttribute("data-edit")){job=S.jobs[x];break}}if(job)openForm(job)}})(eds[i3])}
   var dels=$$("[data-del]");for(var i4=0;i4<dels.length;i4++){(function(el){el.onclick=function(e){e.stopPropagation();S.confirmDel=el.getAttribute("data-del");render()}})(dels[i4])}
   var inls=$$("td[data-inline]");for(var i5=0;i5<inls.length;i5++){(function(td){td.onclick=function(){var p=td.getAttribute("data-inline").split(":");var id=p[0],field=p[1];var job=null;for(var x=0;x<S.jobs.length;x++){if(S.jobs[x].id===id){job=S.jobs[x];break}}if(job&&!(S.inlineEdit&&S.inlineEdit.id===id&&S.inlineEdit.field===field)){S.inlineEdit={id:id,field:field,value:job[field]};render();setTimeout(function(){var inp=td.querySelector("input");if(inp){inp.focus();inp.select()}},20)}}})(inls[i5])}
