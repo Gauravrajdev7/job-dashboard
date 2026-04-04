@@ -4,1234 +4,416 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>PlaceTrack — Job Application Tracker</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>P</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-
-<!-- ═══════════════════════════════════════════════════════
-     FIREBASE SDK v10 (Modular CDN)
-     ═══════════════════════════════════════════════════════ -->
-<script type="module">
-
-// ┌─────────────────────────────────────────────────────────┐
-// │  🔥 FIREBASE CONFIGURATION — PASTE YOUR CONFIG BELOW          │
-// │                                                         │
-// │  Go to: https://console.firebase.google.com             │
-// │  1. Create a new project (or use existing)              │
-// │  2. Add a Web App                                       │
-// │  3. Copy the firebaseConfig object                      │
-// │  4. Paste it below, replacing the placeholder           │
-// └─────────────────────────────────────────────────────────┘
-
-const firebaseConfig = {
-    apiKey: "AIzaSyDlOCOerJrKoC02gHiJuyT97t9lgbKBekU",
-    authDomain: "job-dashboard-6d186.firebaseapp.com",
-    projectId: "job-dashboard-6d186",
-    storageBucket: "job-dashboard-6d186.firebasestorage.app",
-    messagingSenderId: "466257737075",
-    appId: "1:466257737075:web:affa477a08a702b301c106",
-    measurementId: "G-0CX7MM2CR2"
-  };
-
-// ── Firebase Imports ──
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInWithPopup, signOut, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-// ── Initialize ──
-let app, auth, db, provider;
-let firebaseReady = false;
-
-try {
-  if (firebaseConfig.apiKey !== "YOUR_API_KEY_HERE") {
-    app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getFirestore(app);
-    provider = new GoogleAuthProvider();
-    // Enable offline persistence
-    try { await enableIndexedDbPersistence(db); } catch (e) { console.warn("Persistence:", e.code); }
-    firebaseReady = true;
-  }
-} catch (e) { console.warn("Firebase init failed, using localStorage:", e); }
-
-// Expose to global scope for the app
-window.__FB = { auth, db, provider, firebaseReady, signInWithPopup, signOut, GoogleAuthProvider, onAuthStateChanged, collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch };
-
-// Dispatch ready event
-window.dispatchEvent(new Event("firebase-loaded"));
-
-</script>
-
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"><\/script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"><\/script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"><\/script>
 <style>
-/* ═══════════════════════════════════════
-   DESIGN SYSTEM — PlaceTrack v3
-   Aesthetic: Refined utility, dark-first
-   ═══════════════════════════════════════ */
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --font: 'Outfit', system-ui, -apple-system, sans-serif;
-  /* Dark theme (default) */
-  --bg: #0b0c10; --bg2: #111318; --card: #15171e; --card-alt: #1a1d26;
-  --border: #232736; --border-lt: #1c1f29; --ghost: #2e3347;
-  --text: #f0f2f8; --text2: #c5cadb; --muted: #777d96; --dim: #4d5268;
-  --accent: #6c7bff; --accent-soft: rgba(108,123,255,0.08); --accent-mid: rgba(108,123,255,0.2);
-  --input-bg: #191c25; --input-border: #282d3e; --input-focus: #6c7bff;
-  --danger: #f87171; --danger-soft: rgba(248,113,113,0.08); --success: #34d399; --warn: #fbbf24;
-  --row-hover: #1a1d28; --shadow: 0 1px 3px rgba(0,0,0,0.3); --shadow-lg: 0 8px 24px rgba(0,0,0,0.4);
-  --header-bg: rgba(11,12,16,0.88);
-  --radius: 8px; --radius-lg: 12px;
-}
-
-[data-theme="light"] {
-  --bg: #f5f6fa; --bg2: #eceef5; --card: #ffffff; --card-alt: #f9fafd;
-  --border: #e0e3ed; --border-lt: #edf0f7; --ghost: #cdd1de;
-  --text: #111827; --text2: #374151; --muted: #6b7280; --dim: #9ca3af;
-  --accent: #4f46e5; --accent-soft: rgba(79,70,229,0.06); --accent-mid: rgba(79,70,229,0.15);
-  --input-bg: #f8f9fc; --input-border: #d1d5e0; --input-focus: #4f46e5;
-  --danger: #dc2626; --danger-soft: rgba(220,38,38,0.06); --success: #059669; --warn: #d97706;
-  --row-hover: #f4f6fb; --shadow: 0 1px 3px rgba(0,0,0,0.05); --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
-  --header-bg: rgba(255,255,255,0.86);
-}
-
-body {
-  font-family: var(--font); background: var(--bg); color: var(--text);
-  min-height: 100vh; transition: background 0.3s, color 0.3s;
-  -webkit-font-smoothing: antialiased;
-}
-
-::selection { background: var(--accent-mid); }
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-thumb { background: var(--ghost); border-radius: 3px; }
-::-webkit-scrollbar-track { background: transparent; }
-
-input, select, textarea, button { font-family: inherit; }
-input:focus, select:focus, textarea:focus {
-  border-color: var(--input-focus) !important;
-  box-shadow: 0 0 0 2px rgba(108,123,255,0.15) !important;
-  outline: none;
-}
-
-/* ── Animations ── */
-@keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
-@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
-@keyframes slideUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
-@keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.4;} }
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes dotPulse { 0%,100%{opacity:0.3;}50%{opacity:1;} }
-
-.fade-up { animation: fadeUp 0.3s ease both; }
-.slide-up { animation: slideUp 0.25s ease both; }
-
-/* ── Common Elements ── */
-.btn {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 12px; font-weight: 600; border-radius: 7px;
-  cursor: pointer; transition: all 0.15s; border: none; line-height: 1;
-  font-family: var(--font);
-}
-.btn:hover { filter: brightness(1.1); }
-.btn:active { transform: scale(0.97); }
-
-.btn-primary { background: var(--accent); color: #fff; padding: 8px 14px; box-shadow: 0 1px 4px rgba(108,123,255,0.25); }
-.btn-ghost { background: transparent; color: var(--muted); padding: 7px 10px; border: 1px solid var(--border); }
-.btn-danger { background: var(--danger); color: #fff; padding: 7px 12px; }
-.btn-icon { background: transparent; color: var(--muted); padding: 6px; border-radius: 6px; border: none; }
-.btn-icon:hover { background: var(--accent-soft); color: var(--accent); }
-
-.input {
-  background: var(--input-bg); border: 1px solid var(--input-border);
-  border-radius: 7px; padding: 7px 10px; color: var(--text);
-  font-size: 13px; outline: none; width: 100%; transition: border-color 0.15s, box-shadow 0.15s;
-}
-
-.label {
-  font-size: 10px; font-weight: 700; color: var(--dim);
-  text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; display: block;
-}
-
-.badge {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 3px 10px; border-radius: 20px;
-  font-size: 11px; font-weight: 650; letter-spacing: 0.01em; white-space: nowrap;
-}
-.badge .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-
-.card {
-  background: var(--card); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); box-shadow: var(--shadow);
-}
-
-/* ── Status Colors ── */
-.st-applied      { --st-bg: #64748b; --st-dot: #94a3b8; --st-lbg: rgba(100,116,139,0.10); --st-lbr: rgba(100,116,139,0.25); }
-.st-shortlisted   { --st-bg: #3b82f6; --st-dot: #60a5fa; --st-lbg: rgba(59,130,246,0.10);  --st-lbr: rgba(59,130,246,0.25); }
-.st-intscheduled  { --st-bg: #8b5cf6; --st-dot: #a78bfa; --st-lbg: rgba(139,92,246,0.10);  --st-lbr: rgba(139,92,246,0.25); }
-.st-intcompleted  { --st-bg: #6366f1; --st-dot: #818cf8; --st-lbg: rgba(99,102,241,0.10);  --st-lbr: rgba(99,102,241,0.25); }
-.st-rejected      { --st-bg: #e11d48; --st-dot: #fb7185; --st-lbg: rgba(225,29,72,0.10);   --st-lbr: rgba(225,29,72,0.25); }
-.st-offer         { --st-bg: #059669; --st-dot: #34d399; --st-lbg: rgba(5,150,105,0.10);   --st-lbr: rgba(5,150,105,0.25); }
-
-.badge[data-status] {
-  background: var(--st-lbg); color: var(--st-dot); border: 1px solid var(--st-lbr);
-}
-.badge[data-status] .dot { background: var(--st-dot); }
-
-/* ── Header ── */
-.header {
-  background: var(--header-bg); border-bottom: 1px solid var(--border);
-  padding: 0 16px; height: 50px; display: flex; align-items: center; justify-content: space-between;
-  position: sticky; top: 0; z-index: 100; backdrop-filter: blur(16px) saturate(1.4);
-}
-
-/* ── Auth Screen ── */
-.auth-screen {
-  display: flex; align-items: center; justify-content: center;
-  min-height: 100vh; padding: 20px;
-}
-.auth-card {
-  text-align: center; padding: 40px 36px; max-width: 380px; width: 100%;
-}
-.auth-logo {
-  width: 52px; height: 52px; border-radius: 14px;
-  background: linear-gradient(135deg, var(--accent), #8b5cf6);
-  display: flex; align-items: center; justify-content: center;
-  color: #fff; font-weight: 900; font-size: 22px; margin: 0 auto 16px;
-}
-.google-btn {
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-  width: 100%; padding: 12px 20px; border-radius: 10px;
-  background: #fff; color: #333; border: 1px solid #ddd;
-  font-size: 14px; font-weight: 600; cursor: pointer;
-  transition: all 0.15s; margin-top: 20px;
-}
-.google-btn:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
-.local-btn {
-  display: block; margin: 12px auto 0; font-size: 12px;
-  color: var(--muted); background: none; border: none;
-  cursor: pointer; text-decoration: underline;
-}
-
-/* ── User Bar ── */
-.user-pill {
-  display: flex; align-items: center; gap: 6px;
-  padding: 4px 10px 4px 4px; border-radius: 20px;
-  background: var(--accent-soft); border: 1px solid var(--border);
-  font-size: 11px; font-weight: 600; color: var(--text2);
-}
-.user-avatar {
-  width: 22px; height: 22px; border-radius: 50%;
-  background: var(--accent); color: #fff; display: flex;
-  align-items: center; justify-content: center; font-size: 10px; font-weight: 800;
-}
-.user-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-
-/* ── Sync indicator ── */
-.sync-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  display: inline-block; margin-right: 2px;
-}
-.sync-dot.online { background: var(--success); animation: dotPulse 2s infinite; }
-.sync-dot.offline { background: var(--warn); }
-.sync-dot.local { background: var(--dim); }
-
-/* ── Table ── */
-.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.data-table thead th {
-  position: sticky; top: 50px; background: var(--card);
-  padding: 8px 10px; text-align: left; font-size: 10px; font-weight: 800;
-  text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim);
-  border-bottom: 1px solid var(--border); cursor: pointer; user-select: none;
-  white-space: nowrap; z-index: 10;
-}
-.data-table thead th:hover { color: var(--accent); }
-.data-table tbody tr { transition: background 0.15s; }
-.data-table tbody tr:hover { background: var(--row-hover); }
-.data-table tbody td {
-  padding: 10px 10px; border-bottom: 1px solid var(--border-lt); vertical-align: middle;
-}
-
-.row-stale { background: rgba(251,191,36,0.04) !important; }
-.row-follow { background: rgba(248,113,113,0.04) !important; }
-
-/* ── Inline Edit ── */
-.inline-input {
-  background: var(--input-bg); border: 1px solid var(--input-focus);
-  border-radius: 5px; padding: 3px 6px; font-size: 12px; color: var(--text);
-  font-weight: 600; outline: none; width: 100%; font-family: var(--font);
-}
-
-/* ── Status Select (overlaid on badge) ── */
-.status-wrap { position: relative; display: inline-block; }
-.status-wrap select {
-  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
-}
-
-/* ── Stat Cards ── */
-.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 8px; margin-bottom: 14px; }
-.stat-card {
-  background: var(--card); border: 1px solid var(--border);
-  border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow);
-}
-.stat-val { font-size: 24px; font-weight: 900; letter-spacing: -0.04em; line-height: 1; }
-.stat-label { font-size: 10px; color: var(--dim); font-weight: 700; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
-
-/* ── Analytics Grid ── */
-.analytics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
-.analytics-card { padding: 18px; }
-.analytics-title {
-  font-size: 11px; font-weight: 800; color: var(--dim);
-  text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 14px;
-  display: flex; align-items: center; gap: 6px;
-}
-
-/* ── Forms ── */
-.form-panel {
-  border: 1px solid rgba(108,123,255,0.3); border-radius: var(--radius-lg);
-  margin-bottom: 12px; box-shadow: 0 0 0 1px rgba(108,123,255,0.1), var(--shadow);
-  overflow: hidden; background: var(--card);
-}
-.form-topbar {
-  padding: 10px 14px; border-bottom: 1px solid var(--border);
-  background: var(--bg2); display: flex; gap: 6px; align-items: center;
-}
-.form-grid { padding: 12px 14px; display: grid; gap: 10px; align-items: end; }
-.form-grid.quick { grid-template-columns: 1fr 1fr 130px auto; }
-.form-grid.full { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
-
-/* ── Alert Banners ── */
-.alert-row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-.alert-pill {
-  display: flex; align-items: center; gap: 6px; border-radius: 8px;
-  padding: 6px 12px; font-size: 11px; font-weight: 600;
-}
-.alert-danger { background: var(--danger-soft); border: 1px solid rgba(248,113,113,0.2); color: var(--danger); }
-.alert-warn { background: rgba(251,191,36,0.06); border: 1px solid rgba(251,191,36,0.2); color: var(--warn); }
-
-/* ── Shortcuts Bar ── */
-.kb-bar {
-  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
-  padding: 10px 14px; margin-bottom: 12px; display: flex; gap: 16px; flex-wrap: wrap; align-items: center;
-}
-.kb-bar kbd {
-  background: var(--bg2); padding: 1px 5px; border-radius: 4px;
-  font-size: 10px; font-weight: 700; color: var(--accent);
-  border: 1px solid var(--border); font-family: var(--font);
-}
-
-/* ── Toast ── */
-.toast {
-  position: fixed; bottom: 20px; right: 20px; padding: 10px 16px;
-  border-radius: 9px; font-size: 12px; font-weight: 700; color: #fff;
-  z-index: 9999; box-shadow: 0 6px 20px rgba(0,0,0,0.25);
-  animation: slideUp 0.25s ease;
-}
-.toast-ok { background: #059669; }
-.toast-err { background: #dc2626; }
-.toast-warn { background: #d97706; }
-
-/* ── Modal ── */
-.modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-  backdrop-filter: blur(4px); z-index: 200;
-  display: flex; align-items: center; justify-content: center;
-  animation: fadeIn 0.15s ease;
-}
-.modal-box {
-  background: var(--card); border-radius: 14px; padding: 24px 28px;
-  max-width: 400px; width: 90%; box-shadow: var(--shadow-lg);
-  animation: slideUp 0.2s ease;
-}
-
-/* ── Loading Spinner ── */
-.spinner {
-  width: 20px; height: 20px; border: 2px solid var(--ghost);
-  border-top-color: var(--accent); border-radius: 50%;
-  animation: spin 0.6s linear infinite; display: inline-block;
-}
-
-/* ── Responsive ── */
-@media (max-width: 768px) {
-  .form-grid.quick { grid-template-columns: 1fr 1fr; }
-  .form-grid.full { grid-template-columns: 1fr 1fr; }
-  .header { padding: 0 10px; }
-  .stats-grid { grid-template-columns: repeat(3, 1fr); }
-  .analytics-grid { grid-template-columns: 1fr; }
-  .data-table { font-size: 11px; }
-  .data-table thead th, .data-table tbody td { padding: 8px 6px; }
-  .hide-mobile { display: none !important; }
-}
-@media (max-width: 480px) {
-  .stats-grid { grid-template-columns: repeat(2, 1fr); }
-  .form-grid.quick { grid-template-columns: 1fr; }
-}
-
-/* ── Empty State ── */
-.empty-state {
-  text-align: center; padding: 48px 20px; color: var(--dim);
-}
-.empty-icon {
-  width: 48px; height: 48px; border-radius: 12px;
-  background: var(--accent-soft); display: flex; align-items: center;
-  justify-content: center; color: var(--accent); font-size: 20px;
-  margin: 0 auto 10px;
-}
-
-/* ── Widget panels below table ── */
-.widgets-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-top: 12px; }
-.widget-card { padding: 16px; }
-.widget-title {
-  font-size: 11px; font-weight: 800; color: var(--dim);
-  text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px;
-  display: flex; align-items: center; gap: 6px;
-}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--font:'Outfit',system-ui,-apple-system,sans-serif;--bg:#0b0c10;--bg2:#111318;--card:#15171e;--border:#232736;--border-lt:#1c1f29;--ghost:#2e3347;--text:#f0f2f8;--text2:#c5cadb;--muted:#777d96;--dim:#4d5268;--accent:#6c7bff;--accent-soft:rgba(108,123,255,0.08);--accent-mid:rgba(108,123,255,0.2);--input-bg:#191c25;--input-border:#282d3e;--input-focus:#6c7bff;--danger:#f87171;--danger-soft:rgba(248,113,113,0.08);--success:#34d399;--warn:#fbbf24;--row-hover:#1a1d28;--shadow:0 1px 3px rgba(0,0,0,0.3);--shadow-lg:0 8px 24px rgba(0,0,0,0.4);--header-bg:rgba(11,12,16,0.88);--radius:8px;--radius-lg:12px}
+[data-theme="light"]{--bg:#f5f6fa;--bg2:#eceef5;--card:#fff;--border:#e0e3ed;--border-lt:#edf0f7;--ghost:#cdd1de;--text:#111827;--text2:#374151;--muted:#6b7280;--dim:#9ca3af;--accent:#4f46e5;--accent-soft:rgba(79,70,229,0.06);--accent-mid:rgba(79,70,229,0.15);--input-bg:#f8f9fc;--input-border:#d1d5e0;--input-focus:#4f46e5;--danger:#dc2626;--danger-soft:rgba(220,38,38,0.06);--success:#059669;--warn:#d97706;--row-hover:#f4f6fb;--shadow:0 1px 3px rgba(0,0,0,0.05);--shadow-lg:0 8px 24px rgba(0,0,0,0.08);--header-bg:rgba(255,255,255,0.86)}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;transition:background .3s,color .3s;-webkit-font-smoothing:antialiased}
+::selection{background:var(--accent-mid)}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:var(--ghost);border-radius:3px}
+input,select,textarea,button{font-family:inherit}
+input:focus,select:focus,textarea:focus{border-color:var(--input-focus)!important;box-shadow:0 0 0 2px rgba(108,123,255,0.15)!important;outline:none}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes dotPulse{0%,100%{opacity:.3}50%{opacity:1}}
+.fade-up{animation:fadeUp .3s ease both}.slide-up{animation:slideUp .25s ease both}
+.btn{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;border-radius:7px;cursor:pointer;transition:all .15s;border:none;line-height:1;font-family:var(--font)}
+.btn:hover{filter:brightness(1.1)}.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--accent);color:#fff;padding:8px 14px;box-shadow:0 1px 4px rgba(108,123,255,0.25)}
+.btn-ghost{background:transparent;color:var(--muted);padding:7px 10px;border:1px solid var(--border)}
+.btn-danger{background:var(--danger);color:#fff;padding:7px 12px}
+.btn-icon{background:transparent;color:var(--muted);padding:6px;border-radius:6px;border:none}
+.btn-icon:hover{background:var(--accent-soft);color:var(--accent)}
+.input{background:var(--input-bg);border:1px solid var(--input-border);border-radius:7px;padding:7px 10px;color:var(--text);font-size:13px;outline:none;width:100%;transition:border-color .15s,box-shadow .15s}
+.label{font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;display:block}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:650;white-space:nowrap}
+.badge .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow)}
+.st-applied{--sc:#64748b;--sd:#94a3b8}.st-shortlisted{--sc:#3b82f6;--sd:#60a5fa}.st-intscheduled{--sc:#8b5cf6;--sd:#a78bfa}.st-intcompleted{--sc:#6366f1;--sd:#818cf8}.st-rejected{--sc:#e11d48;--sd:#fb7185}.st-offer{--sc:#059669;--sd:#34d399}
+[data-status]{background:color-mix(in srgb,var(--sc) 10%,transparent);color:var(--sd);border:1px solid color-mix(in srgb,var(--sc) 25%,transparent)}
+[data-status] .dot{background:var(--sd)}
+.header{background:var(--header-bg);border-bottom:1px solid var(--border);padding:0 16px;height:50px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;backdrop-filter:blur(16px) saturate(1.4)}
+.auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.auth-card{text-align:center;padding:40px 36px;max-width:380px;width:100%}
+.auth-logo{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,var(--accent),#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:22px;margin:0 auto 16px}
+.google-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:12px 20px;border-radius:10px;background:#fff;color:#333;border:1px solid #ddd;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;margin-top:20px}
+.google-btn:hover{box-shadow:0 2px 8px rgba(0,0,0,0.12)}
+.local-btn{display:block;margin:12px auto 0;font-size:12px;color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline}
+.user-pill{display:flex;align-items:center;gap:6px;padding:4px 10px 4px 4px;border-radius:20px;background:var(--accent-soft);border:1px solid var(--border);font-size:11px;font-weight:600;color:var(--text2)}
+.user-avatar{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;overflow:hidden}
+.user-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+.sync-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:2px}
+.sync-dot.online{background:var(--success);animation:dotPulse 2s infinite}.sync-dot.local{background:var(--dim)}
+.data-table{width:100%;border-collapse:collapse;font-size:12px}
+.data-table thead th{position:sticky;top:50px;background:var(--card);padding:8px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap;z-index:10}
+.data-table thead th:hover{color:var(--accent)}
+.data-table tbody tr{transition:background .15s}.data-table tbody tr:hover{background:var(--row-hover)}
+.data-table tbody td{padding:10px;border-bottom:1px solid var(--border-lt);vertical-align:middle}
+.row-stale{background:rgba(251,191,36,0.04)!important}.row-follow{background:rgba(248,113,113,0.04)!important}
+.inline-input{background:var(--input-bg);border:1px solid var(--input-focus);border-radius:5px;padding:3px 6px;font-size:12px;color:var(--text);font-weight:600;outline:none;width:100%;font-family:var(--font)}
+.status-wrap{position:relative;display:inline-block}.status-wrap select{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:8px;margin-bottom:14px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;box-shadow:var(--shadow)}
+.stat-val{font-size:24px;font-weight:900;letter-spacing:-.04em;line-height:1}
+.stat-label{font-size:10px;color:var(--dim);font-weight:700;margin-top:2px;text-transform:uppercase;letter-spacing:.05em}
+.analytics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.analytics-card{padding:18px}
+.analytics-title{font-size:11px;font-weight:800;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px;display:flex;align-items:center;gap:6px}
+.form-panel{border:1px solid rgba(108,123,255,0.3);border-radius:var(--radius-lg);margin-bottom:12px;box-shadow:0 0 0 1px rgba(108,123,255,0.1),var(--shadow);overflow:hidden;background:var(--card)}
+.form-topbar{padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg2);display:flex;gap:6px;align-items:center}
+.form-grid{padding:12px 14px;display:grid;gap:10px;align-items:end}
+.form-grid.quick{grid-template-columns:1fr 1fr 130px auto}
+.form-grid.full{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
+.alert-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.alert-pill{display:flex;align-items:center;gap:6px;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:600}
+.alert-danger{background:var(--danger-soft);border:1px solid rgba(248,113,113,0.2);color:var(--danger)}
+.alert-warn{background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.2);color:var(--warn)}
+.toast{position:fixed;bottom:20px;right:20px;padding:10px 16px;border-radius:9px;font-size:12px;font-weight:700;color:#fff;z-index:9999;box-shadow:0 6px 20px rgba(0,0,0,0.25);animation:slideUp .25s ease}
+.toast-ok{background:#059669}.toast-err{background:#dc2626}.toast-warn{background:#d97706}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:center;justify-content:center;animation:fadeIn .15s ease}
+.modal-box{background:var(--card);border-radius:14px;padding:24px 28px;max-width:400px;width:90%;box-shadow:var(--shadow-lg);animation:slideUp .2s ease}
+.spinner{width:24px;height:24px;border:2.5px solid var(--ghost);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;display:inline-block}
+.empty-state{text-align:center;padding:48px 20px;color:var(--dim)}
+.empty-icon{width:48px;height:48px;border-radius:12px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:20px;margin:0 auto 10px}
+.widgets-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-top:12px}
+.widget-card{padding:16px}
+.widget-title{font-size:11px;font-weight:800;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+@media(max-width:768px){.form-grid.quick{grid-template-columns:1fr 1fr}.form-grid.full{grid-template-columns:1fr 1fr}.header{padding:0 10px}.stats-grid{grid-template-columns:repeat(3,1fr)}.analytics-grid{grid-template-columns:1fr}.data-table{font-size:11px}.data-table thead th,.data-table tbody td{padding:8px 6px}.hide-mobile{display:none!important}}
+@media(max-width:480px){.stats-grid{grid-template-columns:repeat(2,1fr)}.form-grid.quick{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-
-<div id="app"></div>
-
+<div id="app"><div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0b0c10"><div class="spinner"></div></div></div>
 <script>
-/* ═══════════════════════════════════════════════════════════
-   PlaceTrack v3 — Vanilla JS Application
-   Firebase + localStorage offline fallback
-   ═══════════════════════════════════════════════════════════ */
+// ==========================
+// PlaceTrack v3.1 — Fixed
+// ==========================
+console.log("PlaceTrack loading...");
 
-// ── Wait for Firebase module to load ──
-const FB_READY = new Promise(res => {
-  if (window.__FB) res();
-  else window.addEventListener("firebase-loaded", res);
-});
-
-// ── Constants ──
-const STATUSES = ["Applied","Shortlisted","Interview Scheduled","Interview Completed","Rejected","Offer Received"];
-const SOURCES = ["LinkedIn","Naukri","Indeed","iimjobs","Wellfound","Company Website","Referral","Other"];
-const STATUS_CLASS = {
-  "Applied":"st-applied","Shortlisted":"st-shortlisted",
-  "Interview Scheduled":"st-intscheduled","Interview Completed":"st-intcompleted",
-  "Rejected":"st-rejected","Offer Received":"st-offer"
-};
-const STATUS_COLORS = {
-  "Applied":"#64748b","Shortlisted":"#3b82f6","Interview Scheduled":"#8b5cf6",
-  "Interview Completed":"#6366f1","Rejected":"#e11d48","Offer Received":"#059669"
-};
-const LS_KEY = "placetrack_v3_jobs";
-const LS_THEME = "placetrack_v3_theme";
-
-// ── Helpers ──
-const $ = s => document.querySelector(s);
-const $$ = s => document.querySelectorAll(s);
-const today = () => new Date().toISOString().slice(0,10);
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
-const daysBetween = (d) => d ? Math.floor((new Date() - new Date(d)) / 864e5) : 999;
-const fmtDate = (d) => { if(!d) return ""; return new Date(d+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short"}); };
-const esc = (s) => { const d=document.createElement("div"); d.textContent=s; return d.innerHTML; };
-
-function blankJob() {
-  return { id:uid(), company:"", role:"", dateApplied:today(), source:"LinkedIn",
-    contactPerson:"", contactDetails:"", status:"Applied", lastUpdate:today(),
-    followUpDate:"", notes:"", jobLink:"" };
-}
-
-// ── URL Parser ──
-function parseJobURL(link) {
-  let company="",role="",source="Other",confidence="low";
-  try {
-    const u=new URL(link.trim()), h=u.hostname.replace("www.","");
-    if(h.includes("linkedin.com")){source="LinkedIn";const m=u.pathname.match(/\/jobs\/view\/(.+?)(?:\/|$)/);if(m){const s=m[1].replace(/-\d+$/,""),p=s.split("-at-");if(p.length>=2){role=p[0].split("-").map(w=>w[0]?.toUpperCase()+w.slice(1)).join(" ");company=p[1].split("-").map(w=>w[0]?.toUpperCase()+w.slice(1)).join(" ");confidence="high";}else{role=s.split("-").map(w=>w[0]?.toUpperCase()+w.slice(1)).join(" ");confidence="medium";}}}
-    else if(h.includes("naukri.com")){source="Naukri";const m=u.pathname.match(/\/job-listings-(.+?)(?:\/|$)/);if(m){role=m[1].split("-").slice(0,4).map(w=>w[0]?.toUpperCase()+w.slice(1)).join(" ");confidence="medium";}}
-    else if(h.includes("indeed.com")){source="Indeed";const q=u.searchParams.get("q");if(q){role=q;confidence="medium";}}
-    else if(h.includes("iimjobs.com")){source="iimjobs";}
-    else if(h.includes("wellfound.com")||h.includes("angel.co")){source="Wellfound";const m=u.pathname.match(/\/company\/([^/]+)/);if(m){company=m[1].split("-").map(w=>w[0]?.toUpperCase()+w.slice(1)).join(" ");confidence="medium";}}
-    else{const dp=h.split("."),n=dp[dp.length-2];if(n&&!["com","org","net","co"].includes(n)){company=n[0].toUpperCase()+n.slice(1);source="Company Website";confidence="medium";}}
-  }catch{}
-  return {company,role,source,confidence};
-}
-
-// ═══════════════════════════════════════
-//  STATE
-// ═══════════════════════════════════════
-const state = {
-  user: null,           // { uid, name, email, photo } or null
-  mode: "loading",      // loading | auth | app
-  syncMode: "local",    // local | firebase
-  jobs: [],
-  dark: localStorage.getItem(LS_THEME) !== "light",
-  view: "table",        // table | analytics
-  showForm: false,
-  quickMode: true,
-  editId: null,
-  form: blankJob(),
-  linkInput: "",
-  parseConf: null,
-  search: "",
-  fStatus: "All",
-  fSource: "All",
-  sortKey: "dateApplied",
-  sortDir: "desc",
-  inlineEdit: null,     // {id,field,value}
-  toast: null,
-  confirmDel: null,
-  showKB: false,
-  unsub: null,          // firestore unsubscribe
+// ---- FIREBASE CONFIG ----
+const firebaseConfig = {
+  apiKey: "AIzaSyDlOCOemJrKoC02gHiJuyT97t9lgbKBekU",
+  authDomain: "job-dashboard-6d186.firebaseapp.com",
+  projectId: "job-dashboard-6d186",
+  storageBucket: "job-dashboard-6d186.firebasestorage.app",
+  messagingSenderId: "466257737075",
+  appId: "1:466257737075:web:affa477a08a702b301c106",
+  measurementId: "G-0CX7MM2CR2"
 };
 
-// ── localStorage fallback ──
-function lsLoad() { try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch { return []; } }
-function lsSave(jobs) { try { localStorage.setItem(LS_KEY, JSON.stringify(jobs)); } catch {} }
+// ---- Firebase Init (compat SDK - no modules, no async) ----
+var firebaseReady = false, fbAuth = null, fbDb = null, fbProvider = null;
+try {
+  if (typeof firebase !== "undefined" && FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY_HERE") {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    fbAuth = firebase.auth();
+    fbDb = firebase.firestore();
+    fbProvider = new firebase.auth.GoogleAuthProvider();
+    fbDb.enablePersistence({synchronizeTabs:true}).catch(function(e){console.warn("Persistence:",e.code);});
+    firebaseReady = true;
+    console.log("Firebase OK");
+  } else { console.log("No Firebase config - local mode"); }
+} catch(e) { console.warn("Firebase init error:",e); }
 
-// ═══════════════════════════════════════
-//  FIREBASE DATA LAYER
-// ═══════════════════════════════════════
-function getJobsCol() {
-  const FB = window.__FB;
-  return FB.collection(FB.db, "users", state.user.uid, "applications");
+// ---- Constants ----
+var STATUSES=["Applied","Shortlisted","Interview Scheduled","Interview Completed","Rejected","Offer Received"];
+var SOURCES=["LinkedIn","Naukri","Indeed","iimjobs","Wellfound","Company Website","Referral","Other"];
+var SC_CLASS={"Applied":"st-applied","Shortlisted":"st-shortlisted","Interview Scheduled":"st-intscheduled","Interview Completed":"st-intcompleted","Rejected":"st-rejected","Offer Received":"st-offer"};
+var SC_COLOR={"Applied":"#64748b","Shortlisted":"#3b82f6","Interview Scheduled":"#8b5cf6","Interview Completed":"#6366f1","Rejected":"#e11d48","Offer Received":"#059669"};
+var LS_KEY="placetrack_v3_jobs",LS_THEME="placetrack_v3_theme";
+
+// ---- Helpers ----
+function $(s){return document.querySelector(s)}
+function $$(s){return document.querySelectorAll(s)}
+function today(){return new Date().toISOString().slice(0,10)}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function daysBetween(d){return d?Math.floor((new Date()-new Date(d))/864e5):999}
+function fmtDate(d){if(!d)return"";return new Date(d+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short"})}
+function esc(s){if(!s)return"";var d=document.createElement("div");d.textContent=s;return d.innerHTML}
+function blankJob(){return{id:uid(),company:"",role:"",dateApplied:today(),source:"LinkedIn",contactPerson:"",contactDetails:"",status:"Applied",lastUpdate:today(),followUpDate:"",notes:"",jobLink:""}}
+
+// ---- URL Parser ----
+function parseJobURL(link){
+  var company="",role="",source="Other",confidence="low";
+  try{
+    var u=new URL(link.trim()),h=u.hostname.replace("www.","");
+    if(h.indexOf("linkedin.com")>=0){source="LinkedIn";var m=u.pathname.match(/\/jobs\/view\/(.+?)(?:\/|$)/);if(m){var s=m[1].replace(/-\d+$/,""),p=s.split("-at-");if(p.length>=2){role=p[0].split("-").map(function(w){return w[0]?w[0].toUpperCase()+w.slice(1):w}).join(" ");company=p[1].split("-").map(function(w){return w[0]?w[0].toUpperCase()+w.slice(1):w}).join(" ");confidence="high";}else{role=s.split("-").map(function(w){return w[0]?w[0].toUpperCase()+w.slice(1):w}).join(" ");confidence="medium";}}}
+    else if(h.indexOf("naukri.com")>=0){source="Naukri";var m2=u.pathname.match(/\/job-listings-(.+?)(?:\/|$)/);if(m2){role=m2[1].split("-").slice(0,4).map(function(w){return w[0]?w[0].toUpperCase()+w.slice(1):w}).join(" ");confidence="medium";}}
+    else if(h.indexOf("indeed.com")>=0){source="Indeed";var q=u.searchParams.get("q");if(q){role=q;confidence="medium";}}
+    else if(h.indexOf("iimjobs.com")>=0){source="iimjobs"}
+    else if(h.indexOf("wellfound.com")>=0||h.indexOf("angel.co")>=0){source="Wellfound";var m3=u.pathname.match(/\/company\/([^/]+)/);if(m3){company=m3[1].split("-").map(function(w){return w[0]?w[0].toUpperCase()+w.slice(1):w}).join(" ");confidence="medium";}}
+    else{var dp=h.split("."),n=dp[dp.length-2];if(n&&["com","org","net","co","gov","edu"].indexOf(n)<0){company=n[0].toUpperCase()+n.slice(1);source="Company Website";confidence="medium";}}
+  }catch(e){}
+  return{company:company,role:role,source:source,confidence:confidence}
 }
 
-function subscribeFirestore() {
-  const FB = window.__FB;
-  if (!FB.firebaseReady || !state.user) return;
-  // Unsubscribe previous
-  if (state.unsub) state.unsub();
-  const col = getJobsCol();
-  state.unsub = FB.onSnapshot(col, (snap) => {
-    const jobs = [];
-    snap.forEach(d => jobs.push({ id: d.id, ...d.data() }));
-    state.jobs = jobs;
-    lsSave(jobs); // keep localStorage in sync as backup
-    render();
-  }, (err) => {
-    console.error("Firestore error:", err);
-    flash("Sync error — using local data", "warn");
-    state.jobs = lsLoad();
-    render();
-  });
-  state.syncMode = "firebase";
+// ---- localStorage ----
+function lsLoad(){try{return JSON.parse(localStorage.getItem(LS_KEY))||[]}catch(e){return[]}}
+function lsSave(j){try{localStorage.setItem(LS_KEY,JSON.stringify(j))}catch(e){}}
+
+// ---- STATE ----
+var S={user:null,mode:"loading",syncMode:"local",jobs:[],dark:localStorage.getItem(LS_THEME)!=="light",view:"table",showForm:false,quickMode:true,editId:null,form:blankJob(),linkInput:"",parseConf:null,search:"",fStatus:"All",fSource:"All",sortKey:"dateApplied",sortDir:"desc",inlineEdit:null,toast:null,confirmDel:null,showKB:false,unsub:null};
+
+// ---- Firebase Data ----
+function getRef(){return fbDb.collection("users").doc(S.user.uid).collection("applications")}
+function subscribeFB(){
+  if(!firebaseReady||!S.user)return;
+  if(S.unsub)S.unsub();
+  S.unsub=getRef().onSnapshot(function(snap){var j=[];snap.forEach(function(d){j.push(Object.assign({id:d.id},d.data()))});S.jobs=j;lsSave(j);render()},function(err){console.error("FB err:",err);flash("Sync error","warn");S.jobs=lsLoad();render()});
+  S.syncMode="firebase"
+}
+function fbSave(job){if(!firebaseReady||!S.user){lsSave(S.jobs);return}var d=Object.assign({},job);var id=d.id;delete d.id;getRef().doc(id).set(d).catch(function(e){console.error(e);lsSave(S.jobs);flash("Save failed - stored locally","warn")})}
+function fbDel(id){if(!firebaseReady||!S.user){lsSave(S.jobs);return}getRef().doc(id).delete().catch(function(e){console.error(e);lsSave(S.jobs)})}
+function fbClear(){if(!firebaseReady||!S.user){S.jobs=[];lsSave([]);return}var b=fbDb.batch();S.jobs.forEach(function(j){b.delete(getRef().doc(j.id))});b.commit().catch(function(e){console.error(e)});S.jobs=[];lsSave([])}
+function syncUp(){var local=lsLoad();if(!local.length||!firebaseReady||!S.user)return;var b=fbDb.batch();local.forEach(function(j){var d=Object.assign({},j);var id=d.id;delete d.id;b.set(getRef().doc(id),d)});b.commit().then(function(){flash("Local data synced to cloud")}).catch(function(e){console.warn(e)})}
+
+// ---- Auth ----
+function signInGoogle(){
+  if(!firebaseReady){flash("Firebase not configured","err");return}
+  fbAuth.signInWithPopup(fbProvider).then(function(r){var u=r.user;S.user={uid:u.uid,name:u.displayName,email:u.email,photo:u.photoURL};S.mode="app";syncUp();subscribeFB();render()}).catch(function(e){console.error(e);flash("Sign-in failed: "+e.message,"err")})
+}
+function signOutUser(){if(S.unsub)S.unsub();if(firebaseReady)fbAuth.signOut().catch(function(){});S.user=null;S.syncMode="local";S.jobs=lsLoad();S.mode="auth";render()}
+function useLocalMode(){S.user=null;S.mode="app";S.syncMode="local";S.jobs=lsLoad();render()}
+
+function initApp(){
+  console.log("initApp, firebaseReady="+firebaseReady);
+  if(firebaseReady){
+    fbAuth.onAuthStateChanged(function(u){
+      if(u){S.user={uid:u.uid,name:u.displayName,email:u.email,photo:u.photoURL};S.mode="app";subscribeFB()}
+      else{S.mode="auth";S.jobs=lsLoad()}
+      render()
+    })
+  }else{S.mode="app";S.syncMode="local";S.jobs=lsLoad();render()}
 }
 
-async function fbSave(job) {
-  const FB = window.__FB;
-  if (!FB.firebaseReady || !state.user) { lsSave(state.jobs); return; }
-  try {
-    const ref = FB.doc(FB.db, "users", state.user.uid, "applications", job.id);
-    const data = { ...job }; delete data.id;
-    await FB.setDoc(ref, data);
-  } catch (e) {
-    console.error("Save error:", e); lsSave(state.jobs);
-    flash("Save failed — stored locally", "warn");
+// ---- Actions ----
+function flash(msg,type){type=type||"ok";S.toast={msg:msg,type:type};render();setTimeout(function(){S.toast=null;render()},2800)}
+function openForm(job){
+  if(job){S.form=Object.assign({},job);S.editId=job.id;S.linkInput=job.jobLink||"";S.quickMode=false}
+  else{S.form=blankJob();S.editId=null;S.linkInput="";S.quickMode=true}
+  S.showForm=true;S.parseConf=null;render();setTimeout(function(){var el=$("#link-input");if(el)el.focus()},80)
+}
+function resetForm(){S.showForm=false;S.editId=null;S.form=blankJob();S.linkInput="";S.parseConf=null;render()}
+function handleAutofill(){
+  var url=S.linkInput.trim();if(!url)return;
+  if(S.jobs.some(function(j){return j.jobLink===url&&j.id!==S.editId})){flash("Duplicate link!","warn");return}
+  var r=parseJobURL(url);S.form.company=r.company||S.form.company;S.form.role=r.role||S.form.role;S.form.source=r.source||S.form.source;S.form.jobLink=url;S.parseConf=r.confidence;
+  render();setTimeout(function(){var el=$("#f-company");if(el)el.focus()},50)
+}
+function readFormAndSave(){
+  var g=function(id){var el=$("#"+id);return el?el.value:""};
+  S.form.company=g("f-company");S.form.role=g("f-role");S.form.status=g("f-status");
+  if(!S.quickMode){S.form.dateApplied=g("f-date");S.form.source=g("f-source");S.form.contactPerson=g("f-contact");S.form.contactDetails=g("f-contactd");S.form.followUpDate=g("f-followup");S.form.notes=g("f-notes")}
+  saveEntry()
+}
+function saveEntry(){
+  if(!S.form.company.trim()||!S.form.role.trim()){flash("Company & Role required","err");return}
+  S.form.lastUpdate=today();
+  if(S.editId){S.jobs=S.jobs.map(function(j){return j.id===S.editId?Object.assign({},S.form):j});fbSave(S.form);flash("Updated")}
+  else{S.jobs.unshift(Object.assign({},S.form));fbSave(S.form);flash("Added")}
+  if(S.syncMode==="local")lsSave(S.jobs);resetForm()
+}
+function deleteEntry(id){S.jobs=S.jobs.filter(function(j){return j.id!==id});fbDel(id);if(S.syncMode==="local")lsSave(S.jobs);S.confirmDel=null;flash("Deleted","err");render()}
+function clearAll(){fbClear();S.jobs=[];if(S.syncMode==="local")lsSave([]);S.confirmDel=null;flash("All cleared","err");render()}
+function quickStatus(id,st){var job=null;for(var i=0;i<S.jobs.length;i++){if(S.jobs[i].id===id){job=S.jobs[i];break}}if(!job)return;job.status=st;job.lastUpdate=today();fbSave(job);if(S.syncMode==="local")lsSave(S.jobs);render()}
+function commitInline(){var ie=S.inlineEdit;if(!ie)return;for(var i=0;i<S.jobs.length;i++){if(S.jobs[i].id===ie.id){S.jobs[i][ie.field]=ie.value;S.jobs[i].lastUpdate=today();fbSave(S.jobs[i]);break}}if(S.syncMode==="local")lsSave(S.jobs);S.inlineEdit=null;render()}
+function exportCSV(){var h=["Company","Role","Date Applied","Source","Status","Contact Person","Contact Details","Follow-up Date","Last Update","Notes","Job Link"];var r=S.jobs.map(function(j){return[j.company,j.role,j.dateApplied,j.source,j.status,j.contactPerson,j.contactDetails,j.followUpDate,j.lastUpdate,j.notes,j.jobLink]});var csv=[h].concat(r).map(function(row){return row.map(function(c){return'"'+((c||"").replace(/"/g,'""'))+'"'}).join(",")}).join("\n");var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="placetrack_"+today()+".csv";a.click();flash("Exported CSV")}
+
+// ---- Computed ----
+function getFiltered(){
+  var r=S.jobs.slice();
+  if(S.search){var s=S.search.toLowerCase();r=r.filter(function(j){return(j.company||"").toLowerCase().indexOf(s)>=0||(j.role||"").toLowerCase().indexOf(s)>=0||(j.notes||"").toLowerCase().indexOf(s)>=0||(j.contactPerson||"").toLowerCase().indexOf(s)>=0})}
+  if(S.fStatus!=="All")r=r.filter(function(j){return j.status===S.fStatus});
+  if(S.fSource!=="All")r=r.filter(function(j){return j.source===S.fSource});
+  r.sort(function(a,b){var va=a[S.sortKey]||"",vb=b[S.sortKey]||"";return S.sortDir==="asc"?(va<vb?-1:va>vb?1:0):(va>vb?-1:va<vb?1:0)});
+  return r
+}
+function getStats(){
+  var total=S.jobs.length,byS={};STATUSES.forEach(function(s){byS[s]=S.jobs.filter(function(j){return j.status===s}).length});
+  var interviews=byS["Interview Scheduled"]+byS["Interview Completed"];
+  var conv=total>0?((byS["Offer Received"]/total)*100).toFixed(1):"0.0";
+  var bySrc={};SOURCES.forEach(function(s){var c=S.jobs.filter(function(j){return j.source===s}).length;if(c)bySrc[s]=c});
+  var weeks=[],now=new Date();for(var i=7;i>=0;i--){var e=new Date(now);e.setDate(e.getDate()-i*7);var st=new Date(e);st.setDate(st.getDate()-7);weeks.push({label:"W"+(8-i),count:S.jobs.filter(function(j){var d=new Date(j.dateApplied);return d>=st&&d<e}).length})}
+  return{total:total,byS:byS,interviews:interviews,conv:conv,bySrc:bySrc,weeks:weeks}
+}
+
+// =====================
+// RENDER
+// =====================
+function render(){
+  document.documentElement.setAttribute("data-theme",S.dark?"dark":"light");
+  var app=$("#app");
+  if(S.mode==="loading"){app.innerHTML='<div class="auth-screen"><div class="spinner"></div></div>';return}
+  if(S.mode==="auth"){
+    app.innerHTML='<div class="auth-screen"><div class="card auth-card fade-up"><div class="auth-logo">P</div><h1 style="font-size:22px;font-weight:900;letter-spacing:-.03em">PlaceTrack</h1><p style="color:var(--muted);font-size:13px;margin-top:6px">Job Application Tracker</p><button class="google-btn" onclick="signInGoogle()"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Sign in with Google</button><button class="local-btn" onclick="useLocalMode()">Continue without sign-in (local only)</button></div></div>';return
   }
-}
 
-async function fbDelete(id) {
-  const FB = window.__FB;
-  if (!FB.firebaseReady || !state.user) { lsSave(state.jobs); return; }
-  try {
-    const ref = FB.doc(FB.db, "users", state.user.uid, "applications", id);
-    await FB.deleteDoc(ref);
-  } catch (e) {
-    console.error("Delete error:", e); lsSave(state.jobs);
-  }
-}
+  // ---- MAIN APP ----
+  var f=getFiltered(),st=getStats();
+  var staleN=S.jobs.filter(function(j){return daysBetween(j.lastUpdate)>=7&&["Rejected","Offer Received"].indexOf(j.status)<0}).length;
+  var todayF=S.jobs.filter(function(j){return j.followUpDate&&new Date(j.followUpDate)<=new Date()&&["Rejected","Offer Received"].indexOf(j.status)<0});
+  var upF=S.jobs.filter(function(j){return j.followUpDate&&todayF.indexOf(j)<0&&new Date(j.followUpDate)>new Date()&&daysBetween(j.followUpDate)>=-7&&["Rejected","Offer Received"].indexOf(j.status)<0}).sort(function(a,b){return a.followUpDate.localeCompare(b.followUpDate)});
+  var recent=S.jobs.slice().sort(function(a,b){return b.lastUpdate.localeCompare(a.lastUpdate)}).slice(0,5);
 
-async function fbClearAll() {
-  const FB = window.__FB;
-  if (!FB.firebaseReady || !state.user) { state.jobs = []; lsSave([]); return; }
-  try {
-    const batch = FB.writeBatch(FB.db);
-    state.jobs.forEach(j => {
-      const ref = FB.doc(FB.db, "users", state.user.uid, "applications", j.id);
-      batch.delete(ref);
-    });
-    await batch.commit();
-  } catch (e) { console.error("Clear error:", e); }
-  state.jobs = []; lsSave([]);
-}
+  var h='<header class="header"><div style="display:flex;align-items:center;gap:10px"><div style="width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:12px">P</div><div><span style="font-size:14px;font-weight:800;letter-spacing:-.03em">PlaceTrack</span><span class="hide-mobile" style="font-size:10px;color:var(--dim);margin-left:6px"><span class="sync-dot '+(S.syncMode==="firebase"?"online":"local")+'"></span>'+(S.syncMode==="firebase"?"Synced":"Local")+'</span></div></div>';
+  h+='<div style="display:flex;align-items:center;gap:4px"><div class="hide-mobile" style="display:flex;align-items:center;gap:5px;background:var(--input-bg);border:1px solid var(--border);border-radius:7px;padding:4px 10px;width:160px"><svg width="13" height="13" fill="none" stroke="var(--dim)" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-input" value="'+esc(S.search)+'" placeholder="Search" style="background:transparent;border:none;outline:none;color:var(--text);font-size:11px;width:100%;font-family:var(--font)"></div>';
+  h+='<button class="btn btn-ghost" style="font-size:11px" onclick="S.view=S.view===\'table\'?\'analytics\':\'table\';render()"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span class="hide-mobile">'+(S.view==="table"?"Stats":"Table")+'</span></button>';
+  h+='<button class="btn btn-icon" onclick="exportCSV()" title="Export"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>';
+  h+='<button class="btn btn-icon" onclick="S.confirmDel=\'all\';render()" title="Clear"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>';
+  h+='<button class="btn btn-icon" onclick="S.dark=!S.dark;localStorage.setItem(\''+LS_THEME+'\',S.dark?\'dark\':\'light\');render()">'+(S.dark?'<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>':'<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>')+'</button>';
+  if(S.user)h+='<div class="user-pill" style="margin-left:4px"><div class="user-avatar">'+(S.user.photo?'<img src="'+S.user.photo+'">':esc((S.user.name||"U")[0]))+'</div><span class="hide-mobile">'+esc((S.user.name||"U").split(" ")[0])+'</span><button class="btn btn-icon" onclick="signOutUser()" style="padding:2px;margin-left:2px"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button></div>';
+  else h+='<button class="btn btn-ghost" style="font-size:11px;margin-left:4px" onclick="signInGoogle()">Sign in</button>';
+  h+='</div></header><main style="max-width:1200px;margin:0 auto;padding:14px 14px 40px">';
 
-// Sync local data UP to Firebase on first sign-in
-async function syncLocalToFirebase() {
-  const local = lsLoad();
-  if (!local.length) return;
-  const FB = window.__FB;
-  if (!FB.firebaseReady || !state.user) return;
-  const batch = FB.writeBatch(FB.db);
-  local.forEach(j => {
-    const ref = FB.doc(FB.db, "users", state.user.uid, "applications", j.id);
-    const data = { ...j }; delete data.id;
-    batch.set(ref, data);
-  });
-  try { await batch.commit(); flash("Local data synced to cloud"); } catch (e) { console.warn("Sync failed:", e); }
-}
+  // Stats
+  h+='<div class="stats-grid">';
+  [{l:"Total",v:st.total,c:"var(--accent)"},{l:"Interviews",v:st.interviews,c:"#8b5cf6"},{l:"Rejected",v:st.byS.Rejected,c:"#e11d48"},{l:"Offers",v:st.byS["Offer Received"],c:"#059669"},{l:"Conversion",v:st.conv+"%",c:"#f59e0b"}].forEach(function(s,i){
+    h+='<div class="stat-card fade-up" style="animation-delay:'+i*0.04+'s;border-left:3px solid '+s.c+'"><div class="stat-val" style="color:'+s.c+'">'+s.v+'</div><div class="stat-label">'+s.l+'</div></div>'
+  });h+='</div>';
 
-// ═══════════════════════════════════════
-//  AUTH
-// ═══════════════════════════════════════
-async function signInGoogle() {
-  const FB = window.__FB;
-  if (!FB.firebaseReady) { flash("Firebase not configured", "err"); return; }
-  try {
-    const result = await FB.signInWithPopup(FB.auth, FB.provider);
-    const u = result.user;
-    state.user = { uid: u.uid, name: u.displayName, email: u.email, photo: u.photoURL };
-    state.mode = "app";
-    await syncLocalToFirebase();
-    subscribeFirestore();
-    render();
-  } catch (e) {
-    console.error("Auth error:", e);
-    flash("Sign-in failed: " + e.message, "err");
-  }
-}
+  // Alerts
+  if(todayF.length||staleN){h+='<div class="alert-row">';if(todayF.length)h+='<div class="alert-pill alert-danger fade-up">'+todayF.length+' follow-up'+(todayF.length>1?"s":"")+" due today</div>";if(staleN)h+='<div class="alert-pill alert-warn fade-up">'+staleN+' stale (7+ days)</div>';h+='</div>'}
 
-async function signOutUser() {
-  const FB = window.__FB;
-  if (state.unsub) state.unsub();
-  if (FB.firebaseReady) { try { await FB.signOut(FB.auth); } catch {} }
-  state.user = null;
-  state.syncMode = "local";
-  state.jobs = lsLoad();
-  state.mode = "auth";
-  render();
-}
-
-function useLocalMode() {
-  state.user = null;
-  state.mode = "app";
-  state.syncMode = "local";
-  state.jobs = lsLoad();
-  render();
-}
-
-// ── Init auth listener ──
-async function initAuth() {
-  await FB_READY;
-  const FB = window.__FB;
-  if (FB.firebaseReady) {
-    FB.onAuthStateChanged(FB.auth, (u) => {
-      if (u) {
-        state.user = { uid: u.uid, name: u.displayName, email: u.email, photo: u.photoURL };
-        state.mode = "app";
-        subscribeFirestore();
-      } else {
-        state.mode = "auth";
-        state.jobs = lsLoad();
+  if(S.view==="table"){
+    // Form
+    if(S.showForm){
+      h+='<div class="form-panel slide-up"><div class="form-topbar"><div style="flex:1;display:flex;align-items:center;gap:6px;background:var(--input-bg);border:1px solid var(--input-border);border-radius:7px;padding:0 10px"><svg width="13" height="13" fill="none" stroke="var(--dim)" stroke-width="2" viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg><input id="link-input" value="'+esc(S.linkInput)+'" placeholder="Paste job URL, press Enter..." style="background:transparent;border:none;outline:none;color:var(--text);font-size:12px;padding:7px 0;width:100%;font-family:var(--font)"></div><button class="btn btn-primary" style="flex-shrink:0;font-size:11px" onclick="handleAutofill()">Fill</button><button class="btn btn-ghost" style="font-size:10px;flex-shrink:0" onclick="S.quickMode=!S.quickMode;render()">'+(S.quickMode?"More":"Less")+'</button><button class="btn btn-icon" onclick="resetForm()"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>';
+      if(S.parseConf)h+='<div style="padding:4px 14px;font-size:10px;font-weight:600;color:'+(S.parseConf==="high"?"var(--success)":S.parseConf==="medium"?"var(--warn)":"var(--danger)")+'">'+S.parseConf+' confidence - verify below</div>';
+      h+='<div class="form-grid '+(S.quickMode?"quick":"full")+'">';
+      h+='<div><label class="label">Company *</label><input class="input" id="f-company" value="'+esc(S.form.company)+'" placeholder="e.g. HSBC"></div>';
+      h+='<div><label class="label">Role *</label><input class="input" id="f-role" value="'+esc(S.form.role)+'" placeholder="e.g. Financial Analyst"></div>';
+      h+='<div><label class="label">Status</label><select class="input" id="f-status">'+STATUSES.map(function(s){return'<option value="'+s+'"'+(s===S.form.status?" selected":"")+'>'+s+'</option>'}).join("")+'</select></div>';
+      if(S.quickMode)h+='<div style="display:flex;gap:6px;padding-bottom:1px"><button class="btn btn-primary" onclick="readFormAndSave()">'+(S.editId?"Update":"Save")+'</button><button class="btn btn-ghost" onclick="resetForm()">X</button></div>';
+      else{
+        h+='<div><label class="label">Date</label><input class="input" type="date" id="f-date" value="'+S.form.dateApplied+'"></div>';
+        h+='<div><label class="label">Source</label><select class="input" id="f-source">'+SOURCES.map(function(s){return'<option value="'+s+'"'+(s===S.form.source?" selected":"")+'>'+s+'</option>'}).join("")+'</select></div>';
+        h+='<div><label class="label">Contact</label><input class="input" id="f-contact" value="'+esc(S.form.contactPerson)+'" placeholder="Name"></div>';
+        h+='<div><label class="label">Details</label><input class="input" id="f-contactd" value="'+esc(S.form.contactDetails)+'" placeholder="Email/Phone"></div>';
+        h+='<div><label class="label">Follow-up</label><input class="input" type="date" id="f-followup" value="'+S.form.followUpDate+'"></div>';
+        h+='<div style="grid-column:1/-1"><label class="label">Notes</label><textarea class="input" id="f-notes" style="min-height:40px" placeholder="Notes...">'+esc(S.form.notes)+'</textarea></div>';
+        h+='<div style="grid-column:1/-1;display:flex;gap:6px"><button class="btn btn-primary" onclick="readFormAndSave()">'+(S.editId?"Update":"Save")+'</button><button class="btn btn-ghost" onclick="resetForm()">Cancel</button></div>'
       }
-      render();
+      h+='</div></div>'
+    }
+
+    // Table
+    h+='<div class="card" style="overflow:hidden"><div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button class="btn btn-primary" style="font-size:11px" onclick="openForm()">+ New</button><div style="width:1px;height:18px;background:var(--border)"></div>';
+    h+='<select class="input" style="width:auto;padding:5px 8px;font-size:11px" id="filter-status">'+["All"].concat(STATUSES).map(function(s){return'<option value="'+s+'"'+(s===S.fStatus?" selected":"")+'>'+(s==="All"?"All Status":s)+'</option>'}).join("")+'</select>';
+    h+='<select class="input" style="width:auto;padding:5px 8px;font-size:11px" id="filter-source">'+["All"].concat(SOURCES).map(function(s){return'<option value="'+s+'"'+(s===S.fSource?" selected":"")+'>'+(s==="All"?"All Sources":s)+'</option>'}).join("")+'</select>';
+    h+='<span style="margin-left:auto;font-size:11px;color:var(--dim)">'+f.length+'/'+S.jobs.length+'</span></div>';
+    h+='<div style="overflow-x:auto"><table class="data-table"><thead><tr><th style="width:24px"></th>';
+    [{k:"company",l:"Company"},{k:"role",l:"Role"},{k:"dateApplied",l:"Applied"},{k:null,l:"Source"},{k:"status",l:"Status"},{k:null,l:"Follow-up"},{k:null,l:""}].forEach(function(col){
+      h+='<th'+(col.k?' data-sort="'+col.k+'"':'')+(col.l==="Applied"||col.l==="Source"||col.l==="Follow-up"?' class="hide-mobile" style="width:75px"':col.l===""?' style="width:85px"':'')+'>'+col.l+(S.sortKey===col.k?(S.sortDir==="asc"?" ↑":" ↓"):"")+'</th>'
     });
+    h+='</tr></thead><tbody>';
+
+    if(!f.length){h+='<tr><td colspan="8" class="empty-state">'+(S.jobs.length===0?'<div class="empty-icon">+</div><div>No applications yet</div><button class="btn btn-primary" style="margin-top:10px" onclick="openForm()">Add your first</button>':'No results match filters')+'</td></tr>'}
+    else{f.forEach(function(j){
+      var stale=daysBetween(j.lastUpdate)>=7&&["Rejected","Offer Received"].indexOf(j.status)<0;
+      var follow=j.followUpDate&&new Date(j.followUpDate)<=new Date()&&["Rejected","Offer Received"].indexOf(j.status)<0;
+      var cls=follow?"row-follow":stale?"row-stale":"";var ie=S.inlineEdit;
+      h+='<tr class="'+cls+'"><td style="padding-left:10px">'+(follow?'<span style="color:var(--danger)">!</span>':stale?'<span style="color:var(--warn)">~</span>':'')+'</td>';
+      // Company
+      h+='<td data-inline="'+j.id+':company" style="cursor:text">';
+      if(ie&&ie.id===j.id&&ie.field==="company")h+='<input class="inline-input" data-commit value="'+esc(ie.value)+'">';
+      else h+='<div style="font-weight:700">'+esc(j.company)+'</div>'+(j.contactPerson?'<div style="font-size:10px;color:var(--dim)">'+esc(j.contactPerson)+'</div>':'');
+      h+='</td>';
+      // Role
+      h+='<td data-inline="'+j.id+':role" style="cursor:text">';
+      if(ie&&ie.id===j.id&&ie.field==="role")h+='<input class="inline-input" data-commit value="'+esc(ie.value)+'">';
+      else h+='<div style="font-weight:600">'+esc(j.role)+'</div>'+(j.notes?'<div style="font-size:10px;color:var(--dim);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(j.notes)+'</div>':'');
+      h+='</td>';
+      h+='<td class="hide-mobile" style="font-size:11px;color:var(--muted)">'+fmtDate(j.dateApplied)+'</td>';
+      h+='<td class="hide-mobile" style="font-size:11px;color:var(--muted)">'+esc(j.source)+'</td>';
+      h+='<td><div class="status-wrap"><select data-quickstatus="'+j.id+'">'+STATUSES.map(function(s){return'<option value="'+s+'"'+(s===j.status?" selected":"")+'>'+s+'</option>'}).join("")+'</select><span class="badge '+SC_CLASS[j.status]+'" data-status="'+j.status+'"><span class="dot"></span>'+j.status+'</span></div></td>';
+      h+='<td class="hide-mobile" style="font-size:11px;'+(follow?"color:var(--danger);font-weight:700":"color:var(--muted)")+'">'+(j.followUpDate?fmtDate(j.followUpDate):'<span style="color:var(--ghost)">-</span>')+'</td>';
+      h+='<td><div style="display:flex;gap:3px"><button class="btn btn-icon" data-edit="'+j.id+'" title="Edit"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>';
+      if(j.jobLink)h+='<a href="'+esc(j.jobLink)+'" target="_blank" rel="noreferrer" class="btn btn-icon" title="Link"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg></a>';
+      h+='<button class="btn btn-icon" data-del="'+j.id+'" title="Delete" style="color:var(--danger)"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button></div></td></tr>'
+    })}
+    h+='</tbody></table></div></div>';
+
+    // Widgets
+    if(S.jobs.length){
+      h+='<div class="widgets-grid"><div class="card widget-card"><div class="widget-title">Recent</div>';
+      recent.forEach(function(j){h+='<div style="display:flex;align-items:center;gap:8px;font-size:11px;margin-bottom:6px"><span style="width:5px;height:5px;border-radius:50%;background:'+SC_COLOR[j.status]+'"></span><span style="font-weight:700">'+esc(j.company)+'</span><span style="color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(j.role)+'</span><span style="color:var(--ghost);font-size:10px">'+fmtDate(j.lastUpdate)+'</span></div>'});
+      h+='</div><div class="card widget-card"><div class="widget-title">Follow-ups</div>';
+      if(!todayF.length&&!upF.length)h+='<p style="font-size:11px;color:var(--dim)">None</p>';
+      else{todayF.forEach(function(j){h+='<div style="display:flex;align-items:center;gap:6px;font-size:11px;padding:4px 8px;border-radius:6px;background:var(--danger-soft);margin-bottom:4px;cursor:pointer" data-edit="'+j.id+'"><span style="color:var(--danger);font-weight:800;font-size:9px">TODAY</span><span style="font-weight:700">'+esc(j.company)+'</span><span style="color:var(--muted);flex:1">'+esc(j.role)+'</span></div>'});
+      upF.forEach(function(j){h+='<div style="display:flex;align-items:center;gap:8px;font-size:11px;margin-bottom:4px;cursor:pointer" data-edit="'+j.id+'"><span style="color:var(--accent);font-weight:800;font-size:10px;width:40px">'+fmtDate(j.followUpDate)+'</span><span style="font-weight:700">'+esc(j.company)+'</span><span style="color:var(--muted);flex:1">'+esc(j.role)+'</span></div>'})}
+      h+='</div></div>'
+    }
   } else {
-    // No Firebase config — go straight to local mode
-    state.mode = "app";
-    state.syncMode = "local";
-    state.jobs = lsLoad();
-    render();
-  }
-}
-
-// ═══════════════════════════════════════
-//  ACTIONS
-// ═══════════════════════════════════════
-function flash(msg, type="ok") {
-  state.toast = { msg, type };
-  render();
-  setTimeout(() => { state.toast = null; render(); }, 2800);
-}
-
-function openForm(job) {
-  if (job) { state.form = { ...job }; state.editId = job.id; state.linkInput = job.jobLink || ""; state.quickMode = false; }
-  else { state.form = blankJob(); state.editId = null; state.linkInput = ""; state.quickMode = true; }
-  state.showForm = true; state.parseConf = null;
-  render();
-  setTimeout(() => { const el = $("#link-input"); if (el) el.focus(); }, 80);
-}
-
-function resetForm() {
-  state.showForm = false; state.editId = null; state.form = blankJob();
-  state.linkInput = ""; state.parseConf = null; render();
-}
-
-function handleAutofill() {
-  const url = state.linkInput.trim();
-  if (!url) return;
-  if (state.jobs.some(j => j.jobLink === url && j.id !== state.editId)) { flash("Duplicate link!", "warn"); return; }
-  const r = parseJobURL(url);
-  state.form.company = r.company || state.form.company;
-  state.form.role = r.role || state.form.role;
-  state.form.source = r.source || state.form.source;
-  state.form.jobLink = url;
-  state.parseConf = r.confidence;
-  render();
-  setTimeout(() => { const el = $("#f-company"); if (el) el.focus(); }, 50);
-}
-
-function saveEntry() {
-  if (!state.form.company.trim() || !state.form.role.trim()) { flash("Company & Role required", "err"); return; }
-  state.form.lastUpdate = today();
-  if (state.editId) {
-    state.jobs = state.jobs.map(j => j.id === state.editId ? { ...state.form } : j);
-    fbSave(state.form);
-    flash("Updated");
-  } else {
-    state.jobs.unshift({ ...state.form });
-    fbSave(state.form);
-    flash("Added");
-  }
-  if (state.syncMode === "local") lsSave(state.jobs);
-  resetForm();
-}
-
-function deleteEntry(id) {
-  state.jobs = state.jobs.filter(j => j.id !== id);
-  fbDelete(id);
-  if (state.syncMode === "local") lsSave(state.jobs);
-  state.confirmDel = null;
-  flash("Deleted", "err");
-  render();
-}
-
-function clearAll() {
-  fbClearAll();
-  state.jobs = [];
-  if (state.syncMode === "local") lsSave([]);
-  state.confirmDel = null;
-  flash("All cleared", "err");
-  render();
-}
-
-function quickStatus(id, st) {
-  const job = state.jobs.find(j => j.id === id);
-  if (!job) return;
-  job.status = st; job.lastUpdate = today();
-  fbSave(job);
-  if (state.syncMode === "local") lsSave(state.jobs);
-  render();
-}
-
-function commitInline() {
-  const ie = state.inlineEdit;
-  if (!ie) return;
-  const job = state.jobs.find(j => j.id === ie.id);
-  if (job) { job[ie.field] = ie.value; job.lastUpdate = today(); fbSave(job); }
-  if (state.syncMode === "local") lsSave(state.jobs);
-  state.inlineEdit = null;
-  render();
-}
-
-function exportCSV() {
-  const hdr=["Company","Role","Date Applied","Source","Status","Contact Person","Contact Details","Follow-up Date","Last Update","Notes","Job Link"];
-  const rows=state.jobs.map(j=>[j.company,j.role,j.dateApplied,j.source,j.status,j.contactPerson,j.contactDetails,j.followUpDate,j.lastUpdate,j.notes,j.jobLink]);
-  const csv=[hdr,...rows].map(r=>r.map(c=>`"${(c||"").replace(/"/g,'""')}"`).join(",")).join("\n");
-  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
-  a.download=`placetrack_${today()}.csv`;a.click();
-  flash("Exported CSV");
-}
-
-// ═══════════════════════════════════════
-//  COMPUTED
-// ═══════════════════════════════════════
-function getFiltered() {
-  let r = [...state.jobs];
-  if (state.search) { const s=state.search.toLowerCase(); r=r.filter(j=>j.company?.toLowerCase().includes(s)||j.role?.toLowerCase().includes(s)||j.notes?.toLowerCase().includes(s)||j.contactPerson?.toLowerCase().includes(s)); }
-  if (state.fStatus !== "All") r = r.filter(j=>j.status===state.fStatus);
-  if (state.fSource !== "All") r = r.filter(j=>j.source===state.fSource);
-  r.sort((a,b)=>{ const va=a[state.sortKey]||"",vb=b[state.sortKey]||""; return state.sortDir==="asc"?(va<vb?-1:1):(va>vb?-1:1); });
-  return r;
-}
-
-function getStats() {
-  const total=state.jobs.length, byS={};
-  STATUSES.forEach(s=>byS[s]=state.jobs.filter(j=>j.status===s).length);
-  const interviews=byS["Interview Scheduled"]+byS["Interview Completed"];
-  const conv=total>0?((byS["Offer Received"]/total)*100).toFixed(1):"0.0";
-  const bySrc={}; SOURCES.forEach(s=>{const c=state.jobs.filter(j=>j.source===s).length;if(c)bySrc[s]=c;});
-  const weeks=[];
-  for(let i=7;i>=0;i--){const e=new Date();e.setDate(e.getDate()-i*7);const s=new Date(e);s.setDate(s.getDate()-7);weeks.push({label:`W${8-i}`,count:state.jobs.filter(j=>{const d=new Date(j.dateApplied);return d>=s&&d<e;}).length});}
-  return {total,byS,interviews,conv,bySrc,weeks};
-}
-
-// ═══════════════════════════════════════
-//  RENDER
-// ═══════════════════════════════════════
-function render() {
-  document.documentElement.setAttribute("data-theme", state.dark ? "dark" : "light");
-  const app = $("#app");
-
-  // ── Loading ──
-  if (state.mode === "loading") {
-    app.innerHTML = `<div class="auth-screen"><div class="spinner"></div></div>`;
-    return;
-  }
-
-  // ── Auth Screen ──
-  if (state.mode === "auth") {
-    app.innerHTML = `
-      <div class="auth-screen">
-        <div class="card auth-card fade-up">
-          <div class="auth-logo">P</div>
-          <h1 style="font-size:22px;font-weight:900;letter-spacing:-0.03em">PlaceTrack</h1>
-          <p style="color:var(--muted);font-size:13px;margin-top:6px">Job Application Tracker for MBA Placements</p>
-          <button class="google-btn" onclick="signInGoogle()">
-            <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-            Sign in with Google
-          </button>
-          <button class="local-btn" onclick="useLocalMode()">Continue without sign-in (local only)</button>
-        </div>
-      </div>`;
-    return;
-  }
-
-  // ═══ APP ═══
-  const filtered = getFiltered();
-  const stats = getStats();
-  const staleCount = state.jobs.filter(j=>daysBetween(j.lastUpdate)>=7&&!["Rejected","Offer Received"].includes(j.status)).length;
-  const todayFollows = state.jobs.filter(j=>j.followUpDate&&new Date(j.followUpDate)<=new Date()&&!["Rejected","Offer Received"].includes(j.status));
-  const upcomingFollows = state.jobs.filter(j=>j.followUpDate&&!todayFollows.includes(j)&&daysBetween(today())<=7&&new Date(j.followUpDate)>new Date()&&!["Rejected","Offer Received"].includes(j.status)).sort((a,b)=>a.followUpDate.localeCompare(b.followUpDate));
-  const recent = [...state.jobs].sort((a,b)=>b.lastUpdate.localeCompare(a.lastUpdate)).slice(0,5);
-  const isDup = state.form.company&&state.form.role&&state.jobs.some(j=>j.id!==state.editId&&j.company.toLowerCase()===state.form.company.toLowerCase()&&j.role.toLowerCase()===state.form.role.toLowerCase());
-
-  let html = "";
-
-  // ── Header ──
-  html += `<header class="header">
-    <div style="display:flex;align-items:center;gap:10px">
-      <div style="width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:12px">P</div>
-      <div>
-        <span style="font-size:14px;font-weight:800;letter-spacing:-0.03em">PlaceTrack</span>
-        <span class="hide-mobile" style="font-size:10px;color:var(--dim);margin-left:6px">
-          <span class="sync-dot ${state.syncMode==="firebase"?"online":"local"}"></span>
-          ${state.syncMode==="firebase"?"Synced":"Local"}
-        </span>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:4px">
-      <div class="hide-mobile" style="display:flex;align-items:center;gap:5px;background:var(--input-bg);border:1px solid var(--border);border-radius:7px;padding:4px 10px;width:160px">
-        <svg width="13" height="13" fill="none" stroke="var(--dim)" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input id="search-input" value="${esc(state.search)}" placeholder="Search ⌘K" style="background:transparent;border:none;outline:none;color:var(--text);font-size:11px;width:100%;font-family:var(--font)">
-      </div>
-      <button class="btn btn-ghost" style="font-size:11px" onclick="state.view=state.view==='table'?'analytics':'table';render()">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-        <span class="hide-mobile">${state.view==="table"?"Analytics":"Table"}</span>
-      </button>
-      <button class="btn btn-icon" onclick="exportCSV()" title="Export CSV"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
-      <button class="btn btn-icon" onclick="state.showKB=!state.showKB;render()" title="Shortcuts"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="6" y1="8" x2="6.01" y2="8"/><line x1="10" y1="8" x2="10.01" y2="8"/><line x1="14" y1="8" x2="14.01" y2="8"/><line x1="18" y1="8" x2="18.01" y2="8"/><line x1="7" y1="16" x2="17" y2="16"/></svg></button>
-      <button class="btn btn-icon" onclick="state.confirmDel='all';render()" title="Clear all"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>
-      <button class="btn btn-icon" onclick="state.dark=!state.dark;localStorage.setItem('${LS_THEME}',state.dark?'dark':'light');render()" title="Theme">
-        ${state.dark?'<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>':'<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>'}
-      </button>
-      ${state.user ? `
-        <div class="user-pill" style="margin-left:4px">
-          <div class="user-avatar">${state.user.photo?`<img src="${state.user.photo}" alt="">`:state.user.name?.[0]||"U"}</div>
-          <span class="hide-mobile">${esc(state.user.name?.split(" ")[0]||"User")}</span>
-          <button class="btn btn-icon" onclick="signOutUser()" title="Sign out" style="padding:2px;margin-left:2px"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
-        </div>
-      ` : `<button class="btn btn-ghost" style="font-size:11px;margin-left:4px" onclick="signInGoogle()">Sign in</button>`}
-    </div>
-  </header>`;
-
-  html += `<main style="max-width:1200px;margin:0 auto;padding:14px 14px 40px">`;
-
-  // ── KB shortcuts ──
-  if (state.showKB) {
-    html += `<div class="kb-bar fade-up">
-      <span style="font-size:11px;font-weight:700;color:var(--muted)">Shortcuts</span>
-      <span style="font-size:11px;color:var(--text2)"><kbd>⌘ N</kbd> New</span>
-      <span style="font-size:11px;color:var(--text2)"><kbd>⌘ K</kbd> Search</span>
-      <span style="font-size:11px;color:var(--text2)"><kbd>⌘ ↵</kbd> Save</span>
-      <span style="font-size:11px;color:var(--text2)"><kbd>Esc</kbd> Close</span>
-      <span style="font-size:11px;color:var(--text2)"><kbd>Click cell</kbd> Inline edit</span>
-    </div>`;
-  }
-
-  // ── Stats ──
-  html += `<div class="stats-grid">`;
-  [{l:"Total",v:stats.total,c:"var(--accent)"},{l:"Interviews",v:stats.interviews,c:"#8b5cf6"},{l:"Rejected",v:stats.byS.Rejected,c:"#e11d48"},{l:"Offers",v:stats.byS["Offer Received"],c:"#059669"},{l:"Conversion",v:stats.conv+"%",c:"#f59e0b"}].forEach((s,i) => {
-    html += `<div class="stat-card fade-up" style="animation-delay:${i*0.04}s;border-left:3px solid ${s.c}">
-      <div class="stat-val" style="color:${s.c}">${s.v}</div>
-      <div class="stat-label">${s.l}</div>
-    </div>`;
-  });
-  html += `</div>`;
-
-  // ── Alerts ──
-  if (todayFollows.length || staleCount) {
-    html += `<div class="alert-row">`;
-    if (todayFollows.length) html += `<div class="alert-pill alert-danger fade-up"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> ${todayFollows.length} follow-up${todayFollows.length>1?"s":""} due today</div>`;
-    if (staleCount) html += `<div class="alert-pill alert-warn fade-up"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${staleCount} stale (7+ days)</div>`;
-    html += `</div>`;
-  }
-
-  if (state.view === "analytics") {
-    // ═══ ANALYTICS ═══
-    const maxFunnel = Math.max(1, stats.total);
-    const funnelStages = [
-      {l:"Applied",c:stats.byS.Applied+stats.byS.Shortlisted+stats.byS["Interview Scheduled"]+stats.byS["Interview Completed"]+stats.byS["Offer Received"],color:"#64748b"},
-      {l:"Shortlisted",c:stats.byS.Shortlisted+stats.byS["Interview Scheduled"]+stats.byS["Interview Completed"]+stats.byS["Offer Received"],color:"#3b82f6"},
-      {l:"Interview",c:stats.byS["Interview Scheduled"]+stats.byS["Interview Completed"]+stats.byS["Offer Received"],color:"#8b5cf6"},
-      {l:"Completed",c:stats.byS["Interview Completed"]+stats.byS["Offer Received"],color:"#6366f1"},
-      {l:"Offer",c:stats.byS["Offer Received"],color:"#059669"},
-    ];
-    const maxWeek = Math.max(1, ...stats.weeks.map(w=>w.count));
-
-    html += `<div class="analytics-grid fade-up">`;
+    // Analytics
+    var maxW=Math.max(1,Math.max.apply(null,st.weeks.map(function(w){return w.count})));
+    h+='<div class="analytics-grid fade-up">';
     // Funnel
-    html += `<div class="card analytics-card"><div class="analytics-title">Application Funnel</div>`;
-    funnelStages.forEach(s => {
-      const pct = Math.max(8, (s.c/funnelStages[0].c||1)*100);
-      html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-        <span style="font-size:10px;font-weight:700;color:var(--muted);width:60px;text-align:right;flex-shrink:0">${s.l}</span>
-        <div style="flex:1;height:24px;background:var(--bg2);border-radius:5px;overflow:hidden;position:relative">
-          <div style="width:${pct}%;height:100%;background:${s.color};border-radius:5px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;transition:width 0.5s ease">
-            <span style="font-size:11px;font-weight:800;color:#fff">${s.c}</span>
-          </div>
-        </div>
-      </div>`;
-    });
-    html += `</div>`;
-
-    // Weekly trend
-    html += `<div class="card analytics-card"><div class="analytics-title">Weekly Trend</div>
-      <div style="display:flex;align-items:flex-end;gap:6px;height:110px">`;
-    stats.weeks.forEach(w => {
-      const h = Math.max(4,(w.count/maxWeek)*80);
-      html += `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
-        <span style="font-size:10px;font-weight:700;color:var(--accent)">${w.count||""}</span>
-        <div style="width:100%;max-width:28px;border-radius:4px;height:${h}px;background:${w.count?'linear-gradient(180deg,var(--accent),#4338ca)':'var(--bg2)'};transition:height 0.5s ease"></div>
-        <span style="font-size:9px;color:var(--dim);font-weight:600">${w.label}</span>
-      </div>`;
-    });
-    html += `</div></div>`;
-
-    // Source pie
-    const srcData = Object.entries(stats.bySrc);
-    const srcColors = ["#4f46e5","#3b82f6","#06b6d4","#10b981","#f59e0b","#ef4444","#ec4899","#8b5cf6"];
-    html += `<div class="card analytics-card"><div class="analytics-title">Source Breakdown</div>`;
-    if (srcData.length) {
-      const srcTotal = srcData.reduce((s,[,v])=>s+v,0);
-      let cum = 0;
-      html += `<div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap"><svg width="100" height="100" viewBox="-1 -1 2 2" style="transform:rotate(-90deg);flex-shrink:0">`;
-      srcData.forEach(([l,v],i)=>{
-        const a=(v/srcTotal)*Math.PI*2;const x1=Math.cos(cum),y1=Math.sin(cum);cum+=a;const x2=Math.cos(cum),y2=Math.sin(cum);
-        html+=`<path d="M ${x1} ${y1} A 1 1 0 ${a>Math.PI?1:0} 1 ${x2} ${y2} L 0 0" fill="${srcColors[i%srcColors.length]}"/>`;
-      });
-      html+=`</svg><div style="display:flex;flex-direction:column;gap:4px">`;
-      srcData.forEach(([l,v],i)=>{
-        html+=`<div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:8px;height:8px;border-radius:2px;background:${srcColors[i%srcColors.length]};flex-shrink:0"></span><span style="color:var(--text2);font-weight:600">${esc(l)}</span><span style="color:var(--dim)">${v}</span></div>`;
-      });
-      html+=`</div></div>`;
-    } else { html+=`<p style="font-size:12px;color:var(--dim)">No data</p>`; }
-    html += `</div>`;
-
+    var funnel=[{l:"Applied",c:st.total-st.byS.Rejected,color:"#64748b"},{l:"Shortlisted",c:st.byS.Shortlisted+st.byS["Interview Scheduled"]+st.byS["Interview Completed"]+st.byS["Offer Received"],color:"#3b82f6"},{l:"Interview",c:st.byS["Interview Scheduled"]+st.byS["Interview Completed"]+st.byS["Offer Received"],color:"#8b5cf6"},{l:"Completed",c:st.byS["Interview Completed"]+st.byS["Offer Received"],color:"#6366f1"},{l:"Offer",c:st.byS["Offer Received"],color:"#059669"}];
+    h+='<div class="card analytics-card"><div class="analytics-title">Funnel</div>';
+    funnel.forEach(function(s){var pct=funnel[0].c>0?Math.max(8,(s.c/funnel[0].c)*100):8;h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><span style="font-size:10px;font-weight:700;color:var(--muted);width:60px;text-align:right">'+s.l+'</span><div style="flex:1;height:24px;background:var(--bg2);border-radius:5px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:'+s.color+';border-radius:5px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px"><span style="font-size:11px;font-weight:800;color:#fff">'+s.c+'</span></div></div></div>'});
+    h+='</div>';
+    // Trend
+    h+='<div class="card analytics-card"><div class="analytics-title">Weekly Trend</div><div style="display:flex;align-items:flex-end;gap:6px;height:110px">';
+    st.weeks.forEach(function(w){var ht=Math.max(4,(w.count/maxW)*80);h+='<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px"><span style="font-size:10px;font-weight:700;color:var(--accent)">'+(w.count||"")+'</span><div style="width:100%;max-width:28px;border-radius:4px;height:'+ht+'px;background:'+(w.count?'linear-gradient(180deg,var(--accent),#4338ca)':'var(--bg2)')+'"></div><span style="font-size:9px;color:var(--dim)">'+w.label+'</span></div>'});
+    h+='</div></div>';
     // Status bars
-    html += `<div class="card analytics-card"><div class="analytics-title">Status Distribution</div>`;
-    STATUSES.forEach(st=>{
-      const pct=stats.total>0?(stats.byS[st]/stats.total*100):0;
-      html+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
-        <span style="font-size:10px;font-weight:700;color:var(--muted);width:100px;flex-shrink:0;text-align:right">${st}</span>
-        <div style="flex:1;height:7px;background:var(--bg2);border-radius:4px;overflow:hidden"><div style="width:${pct}%;height:100%;background:${STATUS_COLORS[st]};border-radius:4px;transition:width 0.5s ease"></div></div>
-        <span style="font-size:11px;font-weight:800;color:${STATUS_COLORS[st]};width:22px;text-align:right">${stats.byS[st]}</span>
-      </div>`;
-    });
-    html += `</div>`;
-
-    // Recent activity
-    html += `<div class="card analytics-card"><div class="analytics-title"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Recent Activity</div>`;
-    if(!recent.length){html+=`<p style="font-size:12px;color:var(--dim)">No activity</p>`;}
-    else{recent.forEach(j=>{html+=`<div style="display:flex;align-items:center;gap:8px;font-size:11px;margin-bottom:6px"><span style="width:5px;height:5px;border-radius:50%;background:${STATUS_COLORS[j.status]};flex-shrink:0"></span><span style="font-weight:700">${esc(j.company)}</span><span style="color:var(--dim)">·</span><span style="color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(j.role)}</span><span style="color:var(--ghost);font-size:10px;flex-shrink:0">${fmtDate(j.lastUpdate)}</span></div>`;});}
-    html += `</div>`;
-
-    // Upcoming follow-ups
-    html += `<div class="card analytics-card"><div class="analytics-title"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Follow-ups</div>`;
-    if(!todayFollows.length&&!upcomingFollows.length){html+=`<p style="font-size:12px;color:var(--dim)">None this week</p>`;}
-    else{todayFollows.forEach(j=>{html+=`<div style="display:flex;align-items:center;gap:6px;font-size:11px;padding:4px 8px;border-radius:6px;background:var(--danger-soft);margin-bottom:4px"><span style="color:var(--danger);font-weight:800;font-size:9px;text-transform:uppercase">Today</span><span style="font-weight:700">${esc(j.company)}</span><span style="color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(j.role)}</span></div>`;});
-    upcomingFollows.forEach(j=>{html+=`<div style="display:flex;align-items:center;gap:8px;font-size:11px;margin-bottom:4px"><span style="color:var(--accent);font-weight:800;font-size:10px;width:40px;flex-shrink:0">${fmtDate(j.followUpDate)}</span><span style="font-weight:700">${esc(j.company)}</span><span style="color:var(--muted);flex:1">${esc(j.role)}</span></div>`;});}
-    html += `</div>`;
-
-    html += `</div>`; // analytics-grid
-  } else {
-    // ═══ TABLE VIEW ═══
-
-    // ── Form ──
-    if (state.showForm) {
-      html += `<div class="form-panel slide-up" id="form-panel">
-        <div class="form-topbar">
-          <div style="flex:1;display:flex;align-items:center;gap:6px;background:var(--input-bg);border:1px solid var(--input-border);border-radius:7px;padding:0 10px">
-            <svg width="13" height="13" fill="none" stroke="var(--dim)" stroke-width="2" viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
-            <input id="link-input" value="${esc(state.linkInput)}" placeholder="Paste job URL and press Enter..." style="background:transparent;border:none;outline:none;color:var(--text);font-size:12px;padding:7px 0;width:100%;font-family:var(--font)">
-          </div>
-          <button class="btn btn-primary" style="flex-shrink:0;font-size:11px" onclick="handleAutofill()">
-            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Fill
-          </button>
-          <button class="btn btn-ghost" style="font-size:10px;flex-shrink:0" onclick="state.quickMode=!state.quickMode;render()">
-            ${state.quickMode?"▸ More":"▾ Less"}
-          </button>
-          <button class="btn btn-icon" onclick="resetForm()" title="Close"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-        </div>
-        ${state.parseConf?`<div style="padding:4px 14px;font-size:10px;font-weight:600;color:${state.parseConf==="high"?"var(--success)":state.parseConf==="medium"?"var(--warn)":"var(--danger)"};display:flex;align-items:center;gap:4px"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> ${state.parseConf} confidence — verify below</div>`:""}
-        ${isDup?`<div style="padding:4px 14px;font-size:10px;font-weight:700;color:var(--warn);display:flex;align-items:center;gap:4px">⚠ Duplicate: same company + role exists</div>`:""}
-        <div class="form-grid ${state.quickMode?"quick":"full"}">
-          <div><label class="label">Company *</label><input class="input" id="f-company" value="${esc(state.form.company)}" placeholder="e.g. HSBC"></div>
-          <div><label class="label">Role *</label><input class="input" id="f-role" value="${esc(state.form.role)}" placeholder="e.g. Financial Analyst"></div>
-          <div><label class="label">Status</label><select class="input" id="f-status">${STATUSES.map(s=>`<option value="${s}"${s===state.form.status?" selected":""}>${s}</option>`).join("")}</select></div>
-          ${state.quickMode?`<div style="display:flex;gap:6px;padding-bottom:1px"><button class="btn btn-primary" onclick="readFormAndSave()"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> ${state.editId?"Update":"Save"}</button><button class="btn btn-ghost" onclick="resetForm()"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>`:""}
-          ${!state.quickMode?`
-            <div><label class="label">Date Applied</label><input class="input" type="date" id="f-date" value="${state.form.dateApplied}"></div>
-            <div><label class="label">Source</label><select class="input" id="f-source">${SOURCES.map(s=>`<option value="${s}"${s===state.form.source?" selected":""}>${s}</option>`).join("")}</select></div>
-            <div><label class="label">Contact Person</label><input class="input" id="f-contact" value="${esc(state.form.contactPerson)}" placeholder="Name"></div>
-            <div><label class="label">Contact Details</label><input class="input" id="f-contactd" value="${esc(state.form.contactDetails)}" placeholder="Email / Phone"></div>
-            <div><label class="label">Follow-up Date</label><input class="input" type="date" id="f-followup" value="${state.form.followUpDate}"></div>
-            <div style="grid-column:1/-1"><label class="label">Notes</label><textarea class="input" id="f-notes" style="min-height:40px" placeholder="Notes...">${esc(state.form.notes)}</textarea></div>
-            <div style="grid-column:1/-1;display:flex;gap:6px;padding-top:2px">
-              <button class="btn btn-primary" onclick="readFormAndSave()"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> ${state.editId?"Update":"Save"}</button>
-              <button class="btn btn-ghost" onclick="resetForm()">Cancel</button>
-              <span style="font-size:10px;color:var(--dim);margin-left:auto;align-self:center">⌘ Enter to save</span>
-            </div>
-          `:""}
-        </div>
-      </div>`;
-    }
-
-    // ── Table ──
-    html += `<div class="card" style="overflow:hidden">
-      <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-primary" style="font-size:11px" onclick="openForm()"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New</button>
-        <div style="width:1px;height:18px;background:var(--border)"></div>
-        <select class="input" style="width:auto;padding:5px 8px;font-size:11px" id="filter-status">${["All",...STATUSES].map(s=>`<option value="${s}"${s===state.fStatus?" selected":""}>${s==="All"?"All Status":s}</option>`).join("")}</select>
-        <select class="input" style="width:auto;padding:5px 8px;font-size:11px" id="filter-source">${["All",...SOURCES].map(s=>`<option value="${s}"${s===state.fSource?" selected":""}>${s==="All"?"All Sources":s}</option>`).join("")}</select>
-        <span style="margin-left:auto;font-size:11px;color:var(--dim);font-weight:500">${filtered.length} of ${state.jobs.length}</span>
-      </div>
-      <div style="overflow-x:auto">
-        <table class="data-table">
-          <thead><tr>
-            <th style="width:24px"></th>
-            <th data-sort="company">Company ${state.sortKey==="company"?(state.sortDir==="asc"?"↑":"↓"):""}</th>
-            <th data-sort="role">Role ${state.sortKey==="role"?(state.sortDir==="asc"?"↑":"↓"):""}</th>
-            <th data-sort="dateApplied" style="width:75px">Applied ${state.sortKey==="dateApplied"?(state.sortDir==="asc"?"↑":"↓"):""}</th>
-            <th class="hide-mobile" style="width:75px">Source</th>
-            <th data-sort="status" style="width:150px">Status ${state.sortKey==="status"?(state.sortDir==="asc"?"↑":"↓"):""}</th>
-            <th class="hide-mobile" style="width:75px">Follow-up</th>
-            <th style="width:85px"></th>
-          </tr></thead>
-          <tbody>`;
-
-    if (!filtered.length) {
-      html += `<tr><td colspan="8" class="empty-state">
-        ${state.jobs.length===0?`<div class="empty-icon">+</div><div>No applications yet</div><button class="btn btn-primary" style="margin-top:10px;font-size:12px" onclick="openForm()">Add your first</button>`:"No results match your filters"}
-      </td></tr>`;
-    } else {
-      filtered.forEach(j => {
-        const stale = daysBetween(j.lastUpdate)>=7 && !["Rejected","Offer Received"].includes(j.status);
-        const follow = j.followUpDate && new Date(j.followUpDate)<=new Date() && !["Rejected","Offer Received"].includes(j.status);
-        const cls = follow ? "row-follow" : stale ? "row-stale" : "";
-        const ie = state.inlineEdit;
-
-        html += `<tr class="${cls}">
-          <td style="padding-left:10px">
-            ${follow?'<svg width="12" height="12" fill="none" stroke="var(--danger)" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>':''}
-            ${!follow&&stale?'<svg width="12" height="12" fill="none" stroke="var(--warn)" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>':''}
-          </td>
-          <td data-inline="${j.id}:company" style="cursor:text">
-            ${ie&&ie.id===j.id&&ie.field==="company"?`<input class="inline-input" data-commit value="${esc(ie.value)}">`:`<div style="font-weight:700">${esc(j.company)}</div>${j.contactPerson?`<div style="font-size:10px;color:var(--dim)">${esc(j.contactPerson)}</div>`:""}`}
-          </td>
-          <td data-inline="${j.id}:role" style="cursor:text">
-            ${ie&&ie.id===j.id&&ie.field==="role"?`<input class="inline-input" data-commit value="${esc(ie.value)}">`:`<div style="font-weight:600">${esc(j.role)}</div>${j.notes?`<div style="font-size:10px;color:var(--dim);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(j.notes)}</div>`:""}`}
-          </td>
-          <td style="font-size:11px;color:var(--muted);white-space:nowrap">${fmtDate(j.dateApplied)}</td>
-          <td class="hide-mobile" style="font-size:11px;color:var(--muted)">${esc(j.source)}</td>
-          <td>
-            <div class="status-wrap">
-              <select data-quickstatus="${j.id}">${STATUSES.map(s=>`<option value="${s}"${s===j.status?" selected":""}>${s}</option>`).join("")}</select>
-              <span class="badge ${STATUS_CLASS[j.status]}" data-status="${j.status}"><span class="dot"></span>${j.status}</span>
-            </div>
-          </td>
-          <td class="hide-mobile" style="font-size:11px;white-space:nowrap;${follow?"color:var(--danger);font-weight:700":"color:var(--muted)"}">${j.followUpDate?fmtDate(j.followUpDate):'<span style="color:var(--ghost)">—</span>'}</td>
-          <td>
-            <div style="display:flex;gap:3px">
-              <button class="btn btn-icon" data-edit="${j.id}" title="Edit"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-              ${j.jobLink?`<a href="${esc(j.jobLink)}" target="_blank" rel="noreferrer" class="btn btn-icon" title="Open link"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg></a>`:""}
-              <button class="btn btn-icon" data-del="${j.id}" title="Delete" style="color:var(--danger)"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>
-            </div>
-          </td>
-        </tr>`;
-      });
-    }
-    html += `</tbody></table></div></div>`;
-
-    // ── Bottom Widgets ──
-    if (state.jobs.length) {
-      html += `<div class="widgets-grid">
-        <div class="card widget-card"><div class="widget-title"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Recent Activity</div>`;
-      recent.forEach(j=>{html+=`<div style="display:flex;align-items:center;gap:8px;font-size:11px;margin-bottom:6px"><span style="width:5px;height:5px;border-radius:50%;background:${STATUS_COLORS[j.status]};flex-shrink:0"></span><span style="font-weight:700">${esc(j.company)}</span><span style="color:var(--dim)">·</span><span style="color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(j.role)}</span><span class="badge ${STATUS_CLASS[j.status]}" data-status="${j.status}" style="font-size:9px;padding:2px 6px"><span class="dot" style="width:4px;height:4px"></span>${j.status}</span></div>`;});
-      html += `</div>`;
-      html += `<div class="card widget-card"><div class="widget-title"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Follow-ups</div>`;
-      if(!todayFollows.length&&!upcomingFollows.length){html+=`<p style="font-size:11px;color:var(--dim)">None scheduled</p>`;}
-      else{todayFollows.forEach(j=>{html+=`<div style="display:flex;align-items:center;gap:6px;font-size:11px;padding:4px 8px;border-radius:6px;background:var(--danger-soft);margin-bottom:4px;cursor:pointer" data-edit="${j.id}"><span style="color:var(--danger);font-weight:800;font-size:9px">TODAY</span><span style="font-weight:700">${esc(j.company)}</span><span style="color:var(--muted);flex:1">${esc(j.role)}</span></div>`;});
-      upcomingFollows.forEach(j=>{html+=`<div style="display:flex;align-items:center;gap:8px;font-size:11px;margin-bottom:4px;cursor:pointer" data-edit="${j.id}"><span style="color:var(--accent);font-weight:800;font-size:10px;width:40px;flex-shrink:0">${fmtDate(j.followUpDate)}</span><span style="font-weight:700">${esc(j.company)}</span><span style="color:var(--muted);flex:1">${esc(j.role)}</span></div>`;});}
-      html += `</div></div>`;
-    }
+    h+='<div class="card analytics-card"><div class="analytics-title">Status</div>';
+    STATUSES.forEach(function(s){var pct=st.total>0?(st.byS[s]/st.total*100):0;h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px"><span style="font-size:10px;font-weight:700;color:var(--muted);width:100px;text-align:right">'+s+'</span><div style="flex:1;height:7px;background:var(--bg2);border-radius:4px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:'+SC_COLOR[s]+';border-radius:4px"></div></div><span style="font-size:11px;font-weight:800;color:'+SC_COLOR[s]+';width:22px;text-align:right">'+st.byS[s]+'</span></div>'});
+    h+='</div>';
+    // Source
+    var srcD=Object.keys(st.bySrc).map(function(k){return[k,st.bySrc[k]]});var srcC=["#4f46e5","#3b82f6","#06b6d4","#10b981","#f59e0b","#ef4444","#ec4899"];
+    h+='<div class="card analytics-card"><div class="analytics-title">Sources</div>';
+    if(srcD.length){var tot=srcD.reduce(function(a,b){return a+b[1]},0);var cum=0;
+    h+='<div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap"><svg width="100" height="100" viewBox="-1 -1 2 2" style="transform:rotate(-90deg)">';
+    srcD.forEach(function(d,i){var a=(d[1]/tot)*Math.PI*2;var x1=Math.cos(cum),y1=Math.sin(cum);cum+=a;var x2=Math.cos(cum),y2=Math.sin(cum);h+='<path d="M '+x1+' '+y1+' A 1 1 0 '+(a>Math.PI?1:0)+' 1 '+x2+' '+y2+' L 0 0" fill="'+srcC[i%srcC.length]+'"/>'});
+    h+='</svg><div>';srcD.forEach(function(d,i){h+='<div style="display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:3px"><span style="width:8px;height:8px;border-radius:2px;background:'+srcC[i%srcC.length]+'"></span><span style="color:var(--text2);font-weight:600">'+esc(d[0])+'</span><span style="color:var(--dim)">'+d[1]+'</span></div>'});h+='</div></div>'}
+    else h+='<p style="font-size:12px;color:var(--dim)">No data</p>';
+    h+='</div></div>'
   }
 
-  html += `</main>`;
+  h+='</main>';
+  if(S.toast)h+='<div class="toast toast-'+S.toast.type+'">'+esc(S.toast.msg)+'</div>';
+  if(S.confirmDel){var isAll=S.confirmDel==="all";var dj=!isAll?S.jobs.filter(function(j){return j.id===S.confirmDel})[0]:null;
+  h+='<div class="modal-overlay" onclick="S.confirmDel=null;render()"><div class="modal-box" onclick="event.stopPropagation()"><h3 style="font-size:16px;font-weight:800;margin-bottom:6px">'+(isAll?"Clear All?":"Delete?")+'</h3><p style="font-size:12px;color:var(--muted);margin-bottom:18px">'+(isAll?'Remove all '+S.jobs.length+' applications?':'Delete "'+esc(dj?dj.company:"")+' - '+esc(dj?dj.role:"")+'"?')+'</p><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-ghost" onclick="S.confirmDel=null;render()">Cancel</button><button class="btn btn-danger" onclick="'+(isAll?'clearAll()':'deleteEntry(\''+S.confirmDel+'\')')+'">'+(isAll?"Delete All":"Delete")+'</button></div></div></div>'}
 
-  // ── Toast ──
-  if (state.toast) {
-    html += `<div class="toast toast-${state.toast.type}">${esc(state.toast.msg)}</div>`;
-  }
-
-  // ── Modal ──
-  if (state.confirmDel) {
-    const isAll = state.confirmDel === "all";
-    const job = !isAll ? state.jobs.find(j=>j.id===state.confirmDel) : null;
-    html += `<div class="modal-overlay" onclick="state.confirmDel=null;render()">
-      <div class="modal-box" onclick="event.stopPropagation()">
-        <h3 style="font-size:16px;font-weight:800;margin-bottom:6px">${isAll?"Clear All Data?":"Delete Application?"}</h3>
-        <p style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:18px">${isAll?`Permanently remove all ${state.jobs.length} applications.`:`Delete "${esc(job?.company||"")} — ${esc(job?.role||"")}"?`}</p>
-        <div style="display:flex;gap:8px;justify-content:flex-end">
-          <button class="btn btn-ghost" onclick="state.confirmDel=null;render()">Cancel</button>
-          <button class="btn btn-danger" onclick="${isAll?'clearAll()':'deleteEntry(\"'+state.confirmDel+'\")'}">${isAll?"Delete All":"Delete"}</button>
-        </div>
-      </div>
-    </div>`;
-  }
-
-  app.innerHTML = html;
-
-  // ── Bind events post-render ──
-  bindEvents();
+  app.innerHTML=h;bindEvents()
 }
 
-// ═══════════════════════════════════════
-//  EVENT BINDING
-// ═══════════════════════════════════════
-function bindEvents() {
-  // Search
-  const si = $("#search-input");
-  if (si) si.oninput = (e) => { state.search = e.target.value; render(); };
-
-  // Filters
-  const fs = $("#filter-status");
-  if (fs) fs.onchange = (e) => { state.fStatus = e.target.value; render(); };
-  const fsr = $("#filter-source");
-  if (fsr) fsr.onchange = (e) => { state.fSource = e.target.value; render(); };
-
-  // Sort headers
-  $$("th[data-sort]").forEach(th => {
-    th.onclick = () => {
-      const k = th.dataset.sort;
-      if (state.sortKey===k) state.sortDir = state.sortDir==="asc"?"desc":"asc";
-      else { state.sortKey=k; state.sortDir="desc"; }
-      render();
-    };
-  });
-
-  // Quick status
-  $$("select[data-quickstatus]").forEach(sel => {
-    sel.onchange = (e) => quickStatus(sel.dataset.quickstatus, e.target.value);
-  });
-
-  // Edit buttons
-  $$("[data-edit]").forEach(el => {
-    if (el.tagName === "BUTTON" || el.dataset.edit) {
-      el.onclick = (e) => {
-        e.stopPropagation();
-        const job = state.jobs.find(j=>j.id===el.dataset.edit);
-        if (job) openForm(job);
-      };
-    }
-  });
-
-  // Delete buttons
-  $$("[data-del]").forEach(el => {
-    el.onclick = (e) => { e.stopPropagation(); state.confirmDel = el.dataset.del; render(); };
-  });
-
-  // Inline edit — click to start
-  $$("td[data-inline]").forEach(td => {
-    td.onclick = () => {
-      const [id, field] = td.dataset.inline.split(":");
-      const job = state.jobs.find(j=>j.id===id);
-      if (job && !(state.inlineEdit?.id===id && state.inlineEdit?.field===field)) {
-        state.inlineEdit = { id, field, value: job[field] };
-        render();
-        setTimeout(() => { const inp = td.querySelector("input"); if(inp){inp.focus();inp.select();} }, 20);
-      }
-    };
-  });
-
-  // Inline edit — commit
-  $$("input[data-commit]").forEach(inp => {
-    inp.oninput = (e) => { if(state.inlineEdit) state.inlineEdit.value = e.target.value; };
-    inp.onblur = () => commitInline();
-    inp.onkeydown = (e) => { if(e.key==="Enter")commitInline(); if(e.key==="Escape"){state.inlineEdit=null;render();} };
-  });
-
-  // Form fields
-  const linkInp = $("#link-input");
-  if (linkInp) {
-    linkInp.oninput = (e) => { state.linkInput = e.target.value; };
-    linkInp.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); handleAutofill(); } };
-  }
-
-  // Form field sync
-  ["f-company","f-role","f-status","f-date","f-source","f-contact","f-contactd","f-followup","f-notes"].forEach(id => {
-    const el = $(`#${id}`);
-    if (!el) return;
-    const map = {"f-company":"company","f-role":"role","f-status":"status","f-date":"dateApplied","f-source":"source","f-contact":"contactPerson","f-contactd":"contactDetails","f-followup":"followUpDate","f-notes":"notes"};
-    el.oninput = el.onchange = (e) => { state.form[map[id]] = e.target.value; };
-  });
-
-  // Quick mode: Enter on company → focus role, Enter on role → save
-  const fc = $("#f-company");
-  if (fc) fc.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); const r = $("#f-role"); if(r)r.focus(); } };
-  const fr = $("#f-role");
-  if (fr) fr.onkeydown = (e) => { if (e.key === "Enter" && state.quickMode) { e.preventDefault(); readFormAndSave(); } };
+// ---- Event Binding ----
+function bindEvents(){
+  var si=$("#search-input");if(si)si.oninput=function(e){S.search=e.target.value;render()};
+  var fs=$("#filter-status");if(fs)fs.onchange=function(e){S.fStatus=e.target.value;render()};
+  var fsr=$("#filter-source");if(fsr)fsr.onchange=function(e){S.fSource=e.target.value;render()};
+  var ths=$$("th[data-sort]");for(var i=0;i<ths.length;i++){(function(th){th.onclick=function(){var k=th.getAttribute("data-sort");if(S.sortKey===k)S.sortDir=S.sortDir==="asc"?"desc":"asc";else{S.sortKey=k;S.sortDir="desc"}render()}})(ths[i])}
+  var qss=$$("select[data-quickstatus]");for(var i2=0;i2<qss.length;i2++){(function(sel){sel.onchange=function(e){quickStatus(sel.getAttribute("data-quickstatus"),e.target.value)}})(qss[i2])}
+  var eds=$$("[data-edit]");for(var i3=0;i3<eds.length;i3++){(function(el){el.onclick=function(e){e.stopPropagation();var job=null;for(var x=0;x<S.jobs.length;x++){if(S.jobs[x].id===el.getAttribute("data-edit")){job=S.jobs[x];break}}if(job)openForm(job)}})(eds[i3])}
+  var dels=$$("[data-del]");for(var i4=0;i4<dels.length;i4++){(function(el){el.onclick=function(e){e.stopPropagation();S.confirmDel=el.getAttribute("data-del");render()}})(dels[i4])}
+  var inls=$$("td[data-inline]");for(var i5=0;i5<inls.length;i5++){(function(td){td.onclick=function(){var p=td.getAttribute("data-inline").split(":");var id=p[0],field=p[1];var job=null;for(var x=0;x<S.jobs.length;x++){if(S.jobs[x].id===id){job=S.jobs[x];break}}if(job&&!(S.inlineEdit&&S.inlineEdit.id===id&&S.inlineEdit.field===field)){S.inlineEdit={id:id,field:field,value:job[field]};render();setTimeout(function(){var inp=td.querySelector("input");if(inp){inp.focus();inp.select()}},20)}}})(inls[i5])}
+  var cms=$$("input[data-commit]");for(var i6=0;i6<cms.length;i6++){(function(inp){inp.oninput=function(e){if(S.inlineEdit)S.inlineEdit.value=e.target.value};inp.onblur=function(){commitInline()};inp.onkeydown=function(e){if(e.key==="Enter")commitInline();if(e.key==="Escape"){S.inlineEdit=null;render()}}})(cms[i6])}
+  var li=$("#link-input");if(li){li.oninput=function(e){S.linkInput=e.target.value};li.onkeydown=function(e){if(e.key==="Enter"){e.preventDefault();handleAutofill()}}}
+  var fm={"f-company":"company","f-role":"role","f-status":"status","f-date":"dateApplied","f-source":"source","f-contact":"contactPerson","f-contactd":"contactDetails","f-followup":"followUpDate","f-notes":"notes"};
+  Object.keys(fm).forEach(function(id){var el=$("#"+id);if(!el)return;var fn=function(e){S.form[fm[id]]=e.target.value};el.oninput=fn;el.onchange=fn});
+  var fc=$("#f-company");if(fc)fc.onkeydown=function(e){if(e.key==="Enter"){e.preventDefault();var r=$("#f-role");if(r)r.focus()}};
+  var fr=$("#f-role");if(fr)fr.onkeydown=function(e){if(e.key==="Enter"&&S.quickMode){e.preventDefault();readFormAndSave()}}
 }
 
-// Read form DOM values and save (ensures latest values)
-function readFormAndSave() {
-  const get = (id) => { const el = $(`#${id}`); return el ? el.value : ""; };
-  state.form.company = get("f-company");
-  state.form.role = get("f-role");
-  state.form.status = get("f-status");
-  if (!state.quickMode) {
-    state.form.dateApplied = get("f-date");
-    state.form.source = get("f-source");
-    state.form.contactPerson = get("f-contact");
-    state.form.contactDetails = get("f-contactd");
-    state.form.followUpDate = get("f-followup");
-    state.form.notes = get("f-notes");
-  }
-  saveEntry();
-}
-// Expose to global
-window.readFormAndSave = readFormAndSave;
-
-// ── Keyboard shortcuts ──
-document.addEventListener("keydown", (e) => {
-  if ((e.metaKey||e.ctrlKey) && e.key === "k") { e.preventDefault(); const s=$("#search-input"); if(s)s.focus(); }
-  if ((e.metaKey||e.ctrlKey) && e.key === "n") { e.preventDefault(); openForm(); }
-  if ((e.metaKey||e.ctrlKey) && e.key === "Enter" && state.showForm) { e.preventDefault(); readFormAndSave(); }
-  if (e.key === "Escape") {
-    if (state.confirmDel) { state.confirmDel = null; render(); }
-    else if (state.showForm) resetForm();
-    else if (state.inlineEdit) { state.inlineEdit = null; render(); }
-  }
+document.addEventListener("keydown",function(e){
+  if((e.metaKey||e.ctrlKey)&&e.key==="k"){e.preventDefault();var s=$("#search-input");if(s)s.focus()}
+  if((e.metaKey||e.ctrlKey)&&e.key==="n"){e.preventDefault();openForm()}
+  if((e.metaKey||e.ctrlKey)&&e.key==="Enter"&&S.showForm){e.preventDefault();readFormAndSave()}
+  if(e.key==="Escape"){if(S.confirmDel){S.confirmDel=null;render()}else if(S.showForm)resetForm();else if(S.inlineEdit){S.inlineEdit=null;render()}}
 });
 
-// Expose globals for onclick handlers
-window.signInGoogle = signInGoogle;
-window.signOutUser = signOutUser;
-window.useLocalMode = useLocalMode;
-window.openForm = openForm;
-window.resetForm = resetForm;
-window.handleAutofill = handleAutofill;
-window.saveEntry = saveEntry;
-window.deleteEntry = deleteEntry;
-window.clearAll = clearAll;
-window.quickStatus = quickStatus;
-window.commitInline = commitInline;
-window.exportCSV = exportCSV;
-window.flash = flash;
-window.state = state;
-window.render = render;
-
-// ── Init ──
-initAuth();
+// Start
+initApp();
 
 </script>
 </body>
