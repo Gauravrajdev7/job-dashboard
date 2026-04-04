@@ -114,24 +114,48 @@ var fbAuth = null;
 var fbDb = null;
 var fbProvider = null;
   
-// ---- Firebase Init (compat SDK - no modules, no async) ----
+// ---- Firebase Init (FINAL FIXED VERSION) ----
+var firebaseReady = false;
+var fbAuth = null;
+var fbDb = null;
+var fbProvider = null;
+
 try {
   if (typeof firebase !== "undefined" && firebaseConfig.apiKey) {
+
     firebase.initializeApp(firebaseConfig);
+
     fbAuth = firebase.auth();
     fbDb = firebase.firestore();
     fbProvider = new firebase.auth.GoogleAuthProvider();
 
-    fbDb.enablePersistence({ synchronizeTabs: true }).catch(function(e){
-      console.warn("Persistence:", e.code);
-    });
+    // 🔥 CRITICAL: Keep user logged in
+    fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+      .then(function () {
+        console.log("Auth persistence set to LOCAL");
+      })
+      .catch(function (error) {
+        console.error("Auth persistence error:", error);
+      });
+
+    // 🔥 SAFE Firestore persistence (won’t break app)
+    try {
+      fbDb.enablePersistence({ synchronizeTabs: true })
+        .catch(function (err) {
+          console.warn("Firestore persistence failed:", err.code);
+        });
+    } catch (e) {
+      console.warn("Persistence not supported");
+    }
 
     firebaseReady = true;
     console.log("Firebase OK");
+
   } else {
     console.log("No Firebase config - local mode");
   }
-} catch(e) {
+
+} catch (e) {
   console.warn("Firebase init error:", e);
 }
 
