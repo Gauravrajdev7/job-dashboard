@@ -110,18 +110,25 @@ const firebaseConfig = {
 };
 
 // ---- Firebase Init (compat SDK - no modules, no async) ----
-var firebaseReady = false, fbAuth = null, fbDb = null, fbProvider = null;
 try {
-  if (typeof firebase !== "undefined" && FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY_HERE") {
-    firebase.initializeApp(FIREBASE_CONFIG);
+  if (typeof firebase !== "undefined" && firebaseConfig.apiKey) {
+    firebase.initializeApp(firebaseConfig);
     fbAuth = firebase.auth();
     fbDb = firebase.firestore();
     fbProvider = new firebase.auth.GoogleAuthProvider();
-    fbDb.enablePersistence({synchronizeTabs:true}).catch(function(e){console.warn("Persistence:",e.code);});
+
+    fbDb.enablePersistence({ synchronizeTabs: true }).catch(function(e){
+      console.warn("Persistence:", e.code);
+    });
+
     firebaseReady = true;
     console.log("Firebase OK");
-  } else { console.log("No Firebase config - local mode"); }
-} catch(e) { console.warn("Firebase init error:",e); }
+  } else {
+    console.log("No Firebase config - local mode");
+  }
+} catch(e) {
+  console.warn("Firebase init error:", e);
+}
 
 // ---- Constants ----
 var STATUSES=["Applied","Shortlisted","Interview Scheduled","Interview Completed","Rejected","Offer Received"];
