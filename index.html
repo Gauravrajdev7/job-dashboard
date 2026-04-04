@@ -211,23 +211,121 @@ function fbDel(id){if(!firebaseReady||!S.user){lsSave(S.jobs);return}getRef().do
 function fbClear(){if(!firebaseReady||!S.user){S.jobs=[];lsSave([]);return}var b=fbDb.batch();S.jobs.forEach(function(j){b.delete(getRef().doc(j.id))});b.commit().catch(function(e){console.error(e)});S.jobs=[];lsSave([])}
 function syncUp(){var local=lsLoad();if(!local.length||!firebaseReady||!S.user)return;var b=fbDb.batch();local.forEach(function(j){var d=Object.assign({},j);var id=d.id;delete d.id;b.set(getRef().doc(id),d)});b.commit().then(function(){flash("Local data synced to cloud")}).catch(function(e){console.warn(e)})}
 
-// ---- Auth ----
-function signInGoogle(){
-  if(!firebaseReady){flash("Firebase not configured","err");return}
-  fbAuth.signInWithPopup(fbProvider).then(function(r){var u=r.user;S.user={uid:u.uid,name:u.displayName,email:u.email,photo:u.photoURL};S.mode="app";syncUp();subscribeFB();render()}).catch(function(e){console.error(e);flash("Sign-in failed: "+e.message,"err")})
-}
-function signOutUser(){if(S.unsub)S.unsub();if(firebaseReady)fbAuth.signOut().catch(function(){});S.user=null;S.syncMode="local";S.jobs=lsLoad();S.mode="auth";render()}
-function useLocalMode(){S.user=null;S.mode="app";S.syncMode="local";S.jobs=lsLoad();render()}
+// ---- AUTH (FINAL STABLE VERSION) ----
 
+// 🔥 Sign in with Google (use popup)
+function signInGoogle(){
+  if(!firebaseReady){
+    flash("Firebase not configured","err");
+    return;
+  }
+
+  fbAuth.signInWithPopup(fbProvider)
+    .then(function(result){
+      var u = result.user;
+
+      // 🔥 Save session locally (fallback)
+      localStorage.setItem("user_session", JSON.stringify({
+        uid: u.uid,
+        name: u.displayName,
+        email: u.email,
+        photo: u.photoURL
+      }));
+
+      S.user = {
+        uid: u.uid,
+        name: u.displayName,
+        email: u.email,
+        photo: u.photoURL
+      };
+
+      S.mode = "app";
+      subscribeFB();
+      render();
+    })
+    .catch(function(e){
+      console.error(e);
+      flash("Login failed","err");
+    });
+}
+
+
+// 🔥 Sign out
+function signOutUser(){
+  if(S.unsub) S.unsub();
+
+  if(firebaseReady){
+    fbAuth.signOut().catch(function(){});
+  }
+
+  // 🔥 Clear local session
+  localStorage.removeItem("user_session");
+
+  S.user = null;
+  S.syncMode = "local";
+  S.jobs = lsLoad();
+  S.mode = "auth";
+
+  render();
+}
+
+
+// 🔥 Init App (handles session restore)
 function initApp(){
   console.log("initApp, firebaseReady="+firebaseReady);
+
   if(firebaseReady){
+
     fbAuth.onAuthStateChanged(function(u){
-      if(u){S.user={uid:u.uid,name:u.displayName,email:u.email,photo:u.photoURL};S.mode="app";subscribeFB()}
-      else{S.mode="auth";S.jobs=lsLoad()}
-      render()
-    })
-  }else{S.mode="app";S.syncMode="local";S.jobs=lsLoad();render()}
+
+      if(u){
+        console.log("Firebase user active");
+
+        // 🔥 Save session again (refresh case)
+        localStorage.setItem("user_session", JSON.stringify({
+          uid: u.uid,
+          name: u.displayName,
+          email: u.email,
+          photo: u.photoURL
+        }));
+
+        S.user = {
+          uid: u.uid,
+          name: u.displayName,
+          email: u.email,
+          photo: u.photoURL
+        };
+
+        S.mode = "app";
+        subscribeFB();
+
+      } else {
+        console.warn("Firebase user lost → restoring from localStorage");
+
+        // 🔥 Restore fallback session
+        var saved = localStorage.getItem("user_session");
+
+        if(saved){
+          var user = JSON.parse(saved);
+
+          S.user = user;
+          S.mode = "app";
+          subscribeFB();
+        } else {
+          S.mode = "auth";
+          S.jobs = lsLoad();
+        }
+      }
+
+      render();
+    });
+
+  } else {
+    S.mode = "app";
+    S.syncMode = "local";
+    S.jobs = lsLoad();
+    render();
+  }
 }
 
 // ---- Actions ----
