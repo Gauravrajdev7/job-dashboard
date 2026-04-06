@@ -52,11 +52,11 @@ input:focus,select:focus,textarea:focus{border-color:var(--input-focus)!importan
 .user-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover}
 .sync-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:2px}
 .sync-dot.online{background:var(--success);animation:dotPulse 2s infinite}.sync-dot.local{background:var(--dim)}
-.data-table{width:100%;border-collapse:collapse;font-size:12px}
-.data-table thead th{position:sticky;top:50px;background:var(--card);padding:8px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap;z-index:10}
+.data-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto}
+.data-table thead th{position:sticky;top:0;background:var(--card);padding:8px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);border-bottom:2px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap;z-index:10}
 .data-table thead th:hover{color:var(--accent)}
-.data-table tbody tr{transition:background .15s}.data-table tbody tr:hover{background:var(--row-hover)}
-.data-table tbody td{padding:10px;border-bottom:1px solid var(--border-lt);vertical-align:middle}
+.data-table tbody tr{display:table-row;transition:background .15s}.data-table tbody tr:hover{background:var(--row-hover)}
+.data-table tbody td{padding:10px;border-bottom:1px solid var(--border-lt);vertical-align:top;word-break:break-word}
 .row-stale{background:rgba(251,191,36,0.04)!important}.row-follow{background:rgba(248,113,113,0.04)!important}
 .inline-input{background:var(--input-bg);border:1px solid var(--input-focus);border-radius:5px;padding:3px 6px;font-size:12px;color:var(--text);font-weight:600;outline:none;width:100%;font-family:var(--font)}
 .status-wrap{position:relative;display:inline-block}.status-wrap select{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
@@ -315,44 +315,48 @@ function saveEntry(){
   if(!S.form.company.trim()||!S.form.role.trim()){flash("Company & Role required","err");return}
   S.form.lastUpdate=today();
   var job=Object.assign({},S.form);
-  if(S.syncMode==="firebase"){
-    // Write to Firestore ONLY — snapshot will update S.jobs automatically
-    fbWrite(job);flash(S.editId?"Updated":"Added")
-  }else{
-    if(S.editId){S.jobs=S.jobs.map(function(j){return j.id===S.editId?job:j})}
-    else{S.jobs.unshift(job)}
-    lsSave(S.jobs);flash(S.editId?"Updated":"Added")
-  }
+  // Always update local state first for instant UI feedback
+  if(S.editId){S.jobs=S.jobs.map(function(j){return j.id===S.editId?job:j})}
+  else{S.jobs.unshift(job)}
+  lsSave(S.jobs);
+  // Then write to Firestore (snapshot will reconcile)
+  if(S.syncMode==="firebase"){fbWrite(job)}
+  flash(S.editId?"Updated":"Added");
   resetForm()
 }
 function deleteEntry(id){
+  S.jobs=S.jobs.filter(function(j){return j.id!==id});lsSave(S.jobs);
   if(S.syncMode==="firebase"){fbDel(id)}
-  else{S.jobs=S.jobs.filter(function(j){return j.id!==id});lsSave(S.jobs)}
   S.confirmDel=null;flash("Deleted","err");render()
 }
 function clearAll(){
+  S.jobs=[];lsSave([]);
   if(S.syncMode==="firebase"){fbClear()}
-  else{S.jobs=[];lsSave([])}
   S.confirmDel=null;flash("All cleared","err");render()
 }
 function quickStatus(id,st){
   var job=null;for(var i=0;i<S.jobs.length;i++){if(S.jobs[i].id===id){job=Object.assign({},S.jobs[i]);break}}
   if(!job)return;job.status=st;job.lastUpdate=today();
+  for(var i2=0;i2<S.jobs.length;i2++){if(S.jobs[i2].id===id){S.jobs[i2]=job;break}}
+  lsSave(S.jobs);
   if(S.syncMode==="firebase"){fbWrite(job)}
-  else{for(var i2=0;i2<S.jobs.length;i2++){if(S.jobs[i2].id===id){S.jobs[i2]=job;break}}lsSave(S.jobs);render()}
+  render()
 }
 function quickSource(id,src){
   var job=null;for(var i=0;i<S.jobs.length;i++){if(S.jobs[i].id===id){job=Object.assign({},S.jobs[i]);break}}
   if(!job)return;job.source=src;job.lastUpdate=today();
+  for(var i2=0;i2<S.jobs.length;i2++){if(S.jobs[i2].id===id){S.jobs[i2]=job;break}}
+  lsSave(S.jobs);
   if(S.syncMode==="firebase"){fbWrite(job)}
-  else{for(var i2=0;i2<S.jobs.length;i2++){if(S.jobs[i2].id===id){S.jobs[i2]=job;break}}lsSave(S.jobs);render()}
+  render()
 }
 function commitInline(){
   var ie=S.inlineEdit;if(!ie)return;
   var job=null;for(var i=0;i<S.jobs.length;i++){if(S.jobs[i].id===ie.id){job=Object.assign({},S.jobs[i]);break}}
   if(!job)return;job[ie.field]=ie.value;job.lastUpdate=today();
+  for(var i2=0;i2<S.jobs.length;i2++){if(S.jobs[i2].id===ie.id){S.jobs[i2]=job;break}}
+  lsSave(S.jobs);
   if(S.syncMode==="firebase"){fbWrite(job)}
-  else{for(var i2=0;i2<S.jobs.length;i2++){if(S.jobs[i2].id===ie.id){S.jobs[i2]=job;break}}lsSave(S.jobs)}
   S.inlineEdit=null;render()
 }
 function exportCSV(){var h=["Company","Role","Date Applied","Source","Status","Contact Person","Contact Details","Follow-up Date","Last Update","Notes","Job Link"];var r=S.jobs.map(function(j){return[j.company,j.role,j.dateApplied,j.source,j.status,j.contactPerson,j.contactDetails,j.followUpDate,j.lastUpdate,j.notes,j.jobLink]});var csv=[h].concat(r).map(function(row){return row.map(function(c){return'"'+((c||"").replace(/"/g,'""'))+'"'}).join(",")}).join("\n");var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="placetrack_"+today()+".csv";a.click();flash("Exported CSV")}
@@ -441,7 +445,7 @@ function render(){
     h+='<select class="input" style="width:auto;padding:5px 8px;font-size:11px" id="filter-status">'+["All"].concat(STATUSES).map(function(s){return'<option value="'+s+'"'+(s===S.fStatus?" selected":"")+'>'+(s==="All"?"All Status":s)+'</option>'}).join("")+'</select>';
     h+='<select class="input" style="width:auto;padding:5px 8px;font-size:11px" id="filter-source">'+["All"].concat(SOURCES).map(function(s){return'<option value="'+s+'"'+(s===S.fSource?" selected":"")+'>'+(s==="All"?"All Sources":s)+'</option>'}).join("")+'</select>';
     h+='<span style="margin-left:auto;font-size:11px;color:var(--dim)">'+f.length+'/'+S.jobs.length+'</span></div>';
-    h+='<div style="overflow-x:auto"><table class="data-table"><thead><tr><th style="width:24px"></th>';
+    h+='<div style="overflow-x:auto;position:relative;-webkit-overflow-scrolling:touch"><table class="data-table"><thead><tr><th style="width:28px"></th>';
     [{k:"company",l:"Company"},{k:"role",l:"Role"},{k:"dateApplied",l:"Applied"},{k:"source",l:"Source"},{k:"status",l:"Status"},{k:null,l:"Follow-up"},{k:null,l:""}].forEach(function(col){
       h+='<th'+(col.k?' data-sort="'+col.k+'"':'')+(col.l==="Applied"||col.l==="Follow-up"?' class="hide-mobile" style="width:75px"':col.l===""?' style="width:85px"':col.l==="Source"?' style="width:90px"':'')+'>'+col.l+(S.sortKey===col.k?(S.sortDir==="asc"?" ↑":" ↓"):"")+'</th>'
     });
